@@ -1,0 +1,30 @@
+:root {
+  --ink: #1e1e1e;
+  --paper: #ffffff;
+  --line: #d9d9d9;
+  --muted: #6b6b6b;
+  --danger: #a11;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  overflow: hidden;
+  user-select: none;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.viewer {
+  position: relative;
+  flex: 1;
+}

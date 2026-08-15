@@ -1,0 +1,33 @@
+{
+  "name": "image-library-and-display",
+  "version": "0.1.0",
+  "description": "Electron image library and display: index images in place, browse and zoom",
+  "main": "./out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && electron-vite build",
+    "start": "electron-vite preview",
+    "test": "npm run test:unit && npm run test:smoke",
+    "test:unit": "NODE_OPTIONS=--experimental-sqlite vitest run --project unit",
+    "test:smoke": "npm run build && NODE_OPTIONS=--experimental-sqlite vitest run --project smoke"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "exif-reader": "^2.0.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.4.0",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  }
+}
