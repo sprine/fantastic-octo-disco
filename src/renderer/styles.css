@@ -347,19 +347,30 @@ button {
   opacity: 0.9;
 }
 
-.pill.top-left {
-  top: 16px;
-  left: 16px;
-}
-
-/* The same × as the drawer header. Above the detail panel, so closing the
-   image is never blocked by its own metadata. */
-.viewer-close {
+/* The same × as the drawer header, with the panel toggle beside it. Both sit
+   above the detail panel, so neither is ever blocked by the metadata. */
+.viewer-close,
+.viewer-detail {
   position: absolute;
   top: 14px;
-  right: 14px;
   z-index: 3;
   background: rgba(255, 255, 255, 0.75);
+}
+
+.viewer-close {
+  right: 14px;
+}
+
+.viewer-detail {
+  right: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-detail.active {
+  color: var(--ink);
+  background: var(--faint);
 }
 
 .pill.bottom-right {

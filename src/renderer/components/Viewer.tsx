@@ -173,8 +173,17 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
         )}
       </div>
 
-      <button className="pill top-left" onClick={onToggleDetail}>
-        [m] metadata
+      {/* A sidebar glyph, filled while the panel is out: the control reads as
+          the thing it toggles, the way every editor's panel button does. */}
+      <button
+        className={`icon viewer-detail${detailOpen ? ' active' : ''}`}
+        onClick={onToggleDetail}
+        title={`${detailOpen ? 'Hide' : 'Show'} metadata ([m])`}
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="1.5" y="2.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" />
+          <rect x="9.5" y="2.5" width="5" height="11" rx="1.5" fill={detailOpen ? 'currentColor' : 'none'} stroke="currentColor" />
+        </svg>
       </button>
       <button className="icon viewer-close" onClick={onClose} title="Close ([esc])">
         ×
