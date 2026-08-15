@@ -57,27 +57,27 @@ export function TileMenu({ target, onClose, onChanged }: Props) {
     }
   }, [onClose])
 
-  const remove = async (mode: DeleteMode) => {
+  // Held open rather than closed on failure: a menu that vanishes having
+  // done nothing is indistinguishable from one that worked.
+  const attempt = async (verb: string, action: () => Promise<unknown>, then?: () => void) => {
     setFailed(null)
     try {
-      await window.api.library.remove(target.id, mode)
+      await action()
     } catch (error) {
-      // Held open rather than closed on failure: a menu that vanishes having
-      // done nothing is indistinguishable from one that worked.
-      return setFailed(errorMessage(error))
+      return setFailed(`Could not ${verb}: ${errorMessage(error)}`)
     }
     onClose()
-    onChanged()
+    then?.()
   }
+
+  const remove = (mode: DeleteMode) =>
+    attempt('remove', () => window.api.library.remove(target.id, mode), onChanged)
 
   return (
     <div className="tile-menu" ref={ref} style={{ left: at.x, top: at.y }} role="menu">
       <button
         role="menuitem"
-        onClick={() => {
-          void window.api.shell.openOriginal(target.id)
-          onClose()
-        }}
+        onClick={() => attempt('open', () => window.api.shell.openOriginal(target.id))}
       >
         Open original
       </button>
@@ -89,7 +89,7 @@ export function TileMenu({ target, onClose, onChanged }: Props) {
       <button className="danger" role="menuitem" onClick={() => remove('original')}>
         Delete original
       </button>
-      {failed && <p className="notice">Could not remove: {failed}</p>}
+      {failed && <p className="notice">{failed}</p>}
     </div>
   )
 }

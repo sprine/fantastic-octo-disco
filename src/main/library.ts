@@ -40,10 +40,17 @@ export async function checkDrift(q: Queries, id: number, now = Date.now()): Prom
   return { ...row, drift, mtime_ms: mtime, checked_at: now }
 }
 
-/** The only route to a TIF at full fidelity, so it is not a convenience. */
+/**
+ * The only route to a TIF at full fidelity, so it is not a convenience — and
+ * a failure here must be loud. shell.openPath reports problems as a returned
+ * string, which an earlier version discarded: a moved file read as a button
+ * that does nothing.
+ */
 export async function openOriginal(q: Queries, id: number): Promise<void> {
   const row = getImageRow(q, id)
-  if (row) await shell.openPath(row.source_path)
+  if (!row) throw new Error('This image is no longer in the library')
+  const problem = await shell.openPath(row.source_path)
+  if (problem) throw new Error(problem)
 }
 
 /**

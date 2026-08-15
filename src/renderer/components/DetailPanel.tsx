@@ -86,18 +86,22 @@ function compact(pairs: Field[]): { label: string; value: string }[] {
 export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: () => void }) {
   const [failed, setFailed] = useState<string | null>(null)
 
-  // No confirmation here: 'original' confirms in main. removeImage rethrows
-  // when trashing fails, and an unhandled rejection would read as the button
-  // doing nothing.
-  const remove = async (mode: DeleteMode) => {
+  // Every action reports its failure here: a silent catch reads to the user
+  // as the button doing nothing, which is the bug this notice exists to end.
+  const attempt = async (verb: string, action: () => Promise<unknown>, then?: () => void) => {
     setFailed(null)
     try {
-      await window.api.library.remove(image.id, mode)
+      await action()
     } catch (error) {
-      return setFailed(errorMessage(error))
+      return setFailed(`Could not ${verb}: ${errorMessage(error)}`)
     }
-    onChanged()
+    then?.()
   }
+
+  // No confirmation here: 'original' confirms in main, and removeImage
+  // rethrows when trashing fails.
+  const remove = (mode: DeleteMode) =>
+    attempt('remove', () => window.api.library.remove(image.id, mode), onChanged)
 
   return (
     <div className="detail">
@@ -114,11 +118,13 @@ export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: 
           </dl>
         </section>
       ))}
-      {failed && <p className="notice">Could not remove: {failed}</p>}
+      {failed && <p className="notice">{failed}</p>}
 
       {/* Two commands one word apart: naming carries the safety margin. */}
       <div className="detail-actions">
-        <button onClick={() => window.api.shell.openOriginal(image.id)}>Open original</button>
+        <button onClick={() => attempt('open', () => window.api.shell.openOriginal(image.id))}>
+          Open original
+        </button>
         <button onClick={() => remove('library')}>Remove from library</button>
         <button className="danger" onClick={() => remove('original')}>
           Delete original

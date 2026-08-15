@@ -34,7 +34,11 @@ export const Tile = memo(function Tile({ image, selected, menuOpen, onSelect, on
       ref={ref}
       className={`tile${selected ? ' selected' : ''}${menuOpen ? ' targeted' : ''}`}
       onClick={() => onSelect(image.id)}
-      onDoubleClick={() => window.api.shell.openOriginal(image.id)}
+      onDoubleClick={() =>
+        // The viewer and menus own the visible notice; from a tile the drift
+        // badge is the signal, so a failure here is only logged.
+        window.api.shell.openOriginal(image.id).catch((error) => console.error('[open]', error))
+      }
       // The tile marks itself while the menu is open, so a delete can never be
       // aimed at a tile the user is not looking at.
       onContextMenu={(event) => {

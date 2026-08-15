@@ -314,6 +314,12 @@ button {
   pointer-events: none;
 }
 
+/* Above the upscale notice, so the two never overlap. */
+.ceiling.error {
+  background: rgba(161, 17, 17, 0.8);
+  bottom: 48px;
+}
+
 /* ---- detail panel ---------------------------------------------------- */
 .detail {
   position: absolute;
