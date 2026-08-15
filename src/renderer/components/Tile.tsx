@@ -5,9 +5,12 @@ import { basename } from '../format.js'
 
 type Props = {
   image: ImageRow
+  /** In the selection; there may be many. */
   selected: boolean
+  /** The one tile arrow keys move — only it may scroll itself into view. */
+  focused: boolean
   menuOpen: boolean
-  onSelect: (id: number) => void
+  onSelect: (id: number, shift: boolean) => void
   onMenu: (target: { id: number; x: number; y: number }) => void
 }
 
@@ -19,21 +22,23 @@ type Props = {
  * Memoised because an arrow keypress re-renders the grid, and re-running
  * every tile body to flip one boolean is the wrong cost at library scale.
  */
-export const Tile = memo(function Tile({ image, selected, menuOpen, onSelect, onMenu }: Props) {
+export const Tile = memo(function Tile({ image, selected, focused, menuOpen, onSelect, onMenu }: Props) {
   const [broken, setBroken] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
   const name = basename(image.source_path)
 
-  // Arrow traversal must not move the selection out of view.
+  // Arrow traversal must not move the focus out of view. Keyed on focus, not
+  // selection: a shift-click selects hundreds of tiles at once, and each one
+  // scrolling itself "into view" would fight over the scroll position.
   useEffect(() => {
-    if (selected) ref.current?.scrollIntoView({ block: 'nearest' })
-  }, [selected])
+    if (focused) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [focused])
 
   return (
     <button
       ref={ref}
       className={`tile${selected ? ' selected' : ''}${menuOpen ? ' targeted' : ''}`}
-      onClick={() => onSelect(image.id)}
+      onClick={(event) => onSelect(image.id, event.shiftKey)}
       onDoubleClick={() =>
         // The viewer and menus own the visible notice; from a tile the drift
         // badge is the signal, so a failure here is only logged.

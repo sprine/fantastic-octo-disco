@@ -11,8 +11,11 @@ export type Api = {
     list(): Promise<ImageRow[]>
     /** Lazy stat on display; marks drift, never removes the row. */
     check(id: number): Promise<ImageRow | null>
-    /** 'original' confirms in main, so the guarantee belongs to the operation. */
-    remove(id: number, mode: DeleteMode): Promise<void>
+    /**
+     * 'original' confirms in main — once per batch — so the guarantee belongs
+     * to the operation. Resolves to rows removed; 0 means cancelled.
+     */
+    remove(ids: number[], mode: DeleteMode): Promise<number>
   }
   ingest: {
     /** Native picker accepting files and folders; null if cancelled. */

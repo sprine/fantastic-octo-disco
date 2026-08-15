@@ -6,7 +6,7 @@ import { SUPPORTED_EXTENSIONS, type DeleteMode, type EnqueueResult } from '../sh
 import type { Queries } from './db/queries.js'
 import { addPaths } from './ingest/addPaths.js'
 import type { Queue } from './ingest/queue.js'
-import { checkDrift, listLibrary, openOriginal, removeImage, showInFolder } from './library.js'
+import { checkDrift, listLibrary, openOriginal, removeImages, showInFolder } from './library.js'
 import type { SettingsStore } from './settings.js'
 
 export type Context = {
@@ -23,9 +23,13 @@ export function registerIpc({ db, q, queue, settings, invalidate }: Context): vo
 
   ipcMain.handle(CHANNELS.libraryCheck, (_event, id: number) => checkDrift(q, id))
 
-  ipcMain.handle(CHANNELS.libraryRemove, async (_event, id: number, mode: DeleteMode) => {
-    await removeImage(db, q, id, mode)
-    invalidate(id)
+  ipcMain.handle(CHANNELS.libraryRemove, async (_event, ids: number[], mode: DeleteMode) => {
+    // Invalidate even on a partial failure: some rows may already be gone.
+    try {
+      return await removeImages(db, q, ids, mode)
+    } finally {
+      for (const id of ids) invalidate(id)
+    }
   })
 
   ipcMain.handle(CHANNELS.ingestPick, async (): Promise<EnqueueResult | null> => {

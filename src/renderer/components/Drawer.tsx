@@ -15,8 +15,9 @@ type Props = {
   columns: number
   groupBy: GroupKey | null
   filters: Filters
-  selectedId: number | null
-  onSelect: (id: number) => void
+  selectedIds: ReadonlySet<number>
+  focusedId: number | null
+  onSelect: (id: number, shift: boolean) => void
   onColumns: (columns: number) => void
   onGroupBy: (key: GroupKey | null) => void
   onFilters: (filters: Filters) => void
@@ -71,7 +72,8 @@ export function Drawer(props: Props) {
         images={props.visible}
         columns={props.columns}
         groupBy={props.groupBy}
-        selectedId={props.selectedId}
+        selectedIds={props.selectedIds}
+        focusedId={props.focusedId}
         onSelect={props.onSelect}
         onChanged={props.onChanged}
       />

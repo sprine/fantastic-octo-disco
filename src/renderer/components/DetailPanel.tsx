@@ -130,7 +130,7 @@ export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: 
   // No confirmation here: 'original' confirms in main, and removeImage
   // rethrows when trashing fails.
   const remove = (mode: DeleteMode) =>
-    attempt('remove', () => window.api.library.remove(image.id, mode), onChanged)
+    attempt('remove', () => window.api.library.remove([image.id], mode), onChanged)
 
   return (
     <div className="detail">

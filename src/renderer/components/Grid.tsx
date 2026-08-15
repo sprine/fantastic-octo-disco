@@ -9,8 +9,9 @@ type Props = {
   images: ImageRow[]
   columns: number
   groupBy: GroupKey | null
-  selectedId: number | null
-  onSelect: (id: number) => void
+  selectedIds: ReadonlySet<number>
+  focusedId: number | null
+  onSelect: (id: number, shift: boolean) => void
   onChanged: () => void
 }
 
@@ -18,7 +19,7 @@ type Props = {
  * Deliberately not virtualised: plain DOM holds a 120Hz frame budget at 5000
  * tiles (measured upstream), and the page size caps the list at 500 anyway.
  */
-export function Grid({ images, columns, groupBy, selectedId, onSelect, onChanged }: Props) {
+export function Grid({ images, columns, groupBy, selectedIds, focusedId, onSelect, onChanged }: Props) {
   const [menu, setMenu] = useState<MenuTarget | null>(null)
 
   // Stable, or every memoised tile re-renders on each menu open.
@@ -29,7 +30,8 @@ export function Grid({ images, columns, groupBy, selectedId, onSelect, onChanged
     <Tile
       key={image.id}
       image={image}
-      selected={image.id === selectedId}
+      selected={selectedIds.has(image.id)}
+      focused={image.id === focusedId}
       menuOpen={menu?.id === image.id}
       onSelect={onSelect}
       onMenu={onMenu}

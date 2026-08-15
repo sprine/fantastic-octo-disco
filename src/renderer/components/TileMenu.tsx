@@ -71,7 +71,7 @@ export function TileMenu({ target, onClose, onChanged }: Props) {
   }
 
   const remove = (mode: DeleteMode) =>
-    attempt('remove', () => window.api.library.remove(target.id, mode), onChanged)
+    attempt('remove', () => window.api.library.remove([target.id], mode), onChanged)
 
   return (
     <div className="tile-menu" ref={ref} style={{ left: at.x, top: at.y }} role="menu">

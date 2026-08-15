@@ -66,26 +66,36 @@ export function showInFolder(q: Queries, id: number): void {
   shell.showItemInFolder(row.source_path)
 }
 
+/** Enough paths to recognise what is about to be trashed; past that, a count. */
+const CONFIRM_DETAIL_PATHS = 8
+
 /**
  * Two distinct operations behind one parameter. 'library' never touches the
- * file. 'original' trashes it first, so a failure there aborts before the row
- * is dropped and the user keeps a record of what they still have.
+ * files. 'original' trashes each one first, so a failure there keeps that row
+ * and the user keeps a record of what they still have.
  *
  * The confirmation lives here rather than on a button: it guards the one
  * irreversible action in the application, and a guarantee that holds for a
- * single call site is not a guarantee.
+ * single call site is not a guarantee. One dialog per batch, never per file.
+ *
+ * Resolves to how many rows were removed — 0 tells the caller the dialog was
+ * cancelled. A file that would not trash is skipped, logged, and reported at
+ * the end so one stubborn path does not strand the rest of the batch.
  */
-export async function removeImage(
+export async function removeImages(
   db: DatabaseSync,
   q: Queries,
-  id: number,
+  ids: number[],
   mode: DeleteMode,
   now = Date.now()
-): Promise<void> {
-  const row = getImageRow(q, id)
-  if (!row) return
+): Promise<number> {
+  const rows = ids.map((id) => getImageRow(q, id)).filter((row): row is ImageRow => row !== null)
+  if (rows.length === 0) return 0
 
   if (mode === 'original') {
+    const paths = rows.map((row) => row.source_path)
+    const shown = paths.slice(0, CONFIRM_DETAIL_PATHS)
+    if (paths.length > shown.length) shown.push(`…and ${paths.length - shown.length} more`)
     // Parented, or on Windows/Linux the confirmation is a separate top-level
     // window that can fall behind the app with the caller's promise pending.
     const parent = BrowserWindow.getAllWindows()[0]
@@ -94,28 +104,42 @@ export async function removeImage(
       buttons: ['Cancel', 'Move to trash'],
       defaultId: 0,
       cancelId: 0,
-      message: 'Move this file to the trash?',
-      detail: row.source_path
+      message:
+        rows.length === 1 ? 'Move this file to the trash?' : `Move these ${rows.length} files to the trash?`,
+      detail: shown.join('\n')
     }
     const { response } = parent
       ? await dialog.showMessageBox(parent, options)
       : await dialog.showMessageBox(options)
-    if (response !== 1) return
+    if (response !== 1) return 0
+  }
 
-    try {
-      await shell.trashItem(row.source_path)
-    } catch (error) {
-      q.logDeletion.run(id, row.source_path, mode, now, errorMessage(error))
-      throw error
+  const failed: string[] = []
+  let removed = 0
+  for (const row of rows) {
+    if (mode === 'original') {
+      try {
+        await shell.trashItem(row.source_path)
+      } catch (error) {
+        q.logDeletion.run(row.id, row.source_path, mode, now, errorMessage(error))
+        failed.push(`${row.source_path}: ${errorMessage(error)}`)
+        continue
+      }
     }
+
+    for (const derivative of [row.thumb_path, row.display_path]) {
+      if (derivative) await rm(derivative, { force: true })
+    }
+
+    withTransaction(db, () => {
+      q.deleteImage.run(row.id) // cascades to ingestion_log
+      q.logDeletion.run(row.id, row.source_path, mode, now, null)
+    })
+    removed += 1
   }
 
-  for (const derivative of [row.thumb_path, row.display_path]) {
-    if (derivative) await rm(derivative, { force: true })
+  if (failed.length > 0) {
+    throw new Error(`could not trash ${failed.length} of ${rows.length}:\n${failed.join('\n')}`)
   }
-
-  withTransaction(db, () => {
-    q.deleteImage.run(id) // cascades to ingestion_log
-    q.logDeletion.run(id, row.source_path, mode, now, null)
-  })
+  return removed
 }

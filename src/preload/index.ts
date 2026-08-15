@@ -6,7 +6,7 @@ const api: Api = {
   library: {
     list: () => ipcRenderer.invoke(CHANNELS.libraryList),
     check: (id) => ipcRenderer.invoke(CHANNELS.libraryCheck, id),
-    remove: (id, mode) => ipcRenderer.invoke(CHANNELS.libraryRemove, id, mode)
+    remove: (ids, mode) => ipcRenderer.invoke(CHANNELS.libraryRemove, ids, mode)
   },
   ingest: {
     pickAndAdd: () => ipcRenderer.invoke(CHANNELS.ingestPick),

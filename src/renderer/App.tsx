@@ -3,13 +3,18 @@ import { Drawer } from './components/Drawer.js'
 import { applyFilters, groupImages, type Filters, type GroupKey } from './groups.js'
 import { Rail } from './components/Rail.js'
 import { Viewer } from './components/Viewer.js'
+import { extendTo, NO_SELECTION, selectOne, type Selection } from './selection.js'
+import type { DeleteMode } from '../shared/types.js'
 import { useLibrary } from './state/useLibrary.js'
 import { useSettings } from './state/useSettings.js'
 
 export function App() {
   const { images, counts, failures, refresh } = useLibrary()
   const { settings, update } = useSettings()
+  // The focused image (viewer) and the multi-selection are separate values:
+  // a shift-click grows the set but the viewer still shows one image.
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [selection, setSelection] = useState<Selection>(NO_SELECTION)
   const [detailOpen, setDetailOpen] = useState(false)
   // Session state, deliberately unpersisted: a grouping is a question being
   // asked now, not how the library lives.
@@ -30,36 +35,79 @@ export function App() {
   // Stable so the divider's drag listeners survive unrelated re-renders.
   const onColumns = useCallback((columns: number) => update(() => ({ columns })), [update])
 
-  // Selection and displayed image are one value, so traversal is an index
-  // move over the same ordered list the grid renders.
+  const onSelect = useCallback(
+    (id: number, shift: boolean) => {
+      setSelection((prev) =>
+        shift ? extendTo(prev, visible.map((image) => image.id), id) : selectOne(id)
+      )
+      setSelectedId(id)
+    },
+    [visible]
+  )
+
+  // Traversal is an index move over the same ordered list the grid renders.
+  // It collapses the multi-selection: an arrow press means "this one now".
   const step = useCallback(
     (delta: number) => {
       if (visible.length === 0) return
       const current = visible.findIndex((image) => image.id === selectedId)
       const next = current === -1 ? 0 : Math.min(visible.length - 1, Math.max(0, current + delta))
       setSelectedId(visible[next]!.id)
+      setSelection(selectOne(visible[next]!.id))
     },
     [visible, selectedId]
   )
 
-  // The handler reads the latest step through a ref, so the window listener is
-  // registered once instead of reattached on every arrow press — the one key
-  // people hold down.
+  // Delete removes the selection from the library; ⌘-delete trashes the
+  // originals too. Both go through one IPC call so main confirms once per
+  // batch, and 0 back means the confirmation was cancelled — keep the
+  // selection so the user is not made to rebuild it.
+  const removeSelected = useCallback(
+    async (mode: DeleteMode) => {
+      const ids = selection.ids.size > 0 ? [...selection.ids] : selectedId !== null ? [selectedId] : []
+      if (ids.length === 0) return
+      try {
+        if ((await window.api.library.remove(ids, mode)) === 0) return
+      } catch (error) {
+        // A partial failure: rows that would not trash stay in the grid after
+        // refresh — that is the visible signal; the detail lands here.
+        console.error('[remove]', error)
+      }
+      setSelection(NO_SELECTION)
+      setSelectedId(null)
+      await refresh()
+    },
+    [selection, selectedId, refresh]
+  )
+
+  // The handler reads the latest step/remove through refs, so the window
+  // listener is registered once instead of reattached on every arrow press —
+  // the one key people hold down.
   const stepRef = useRef(step)
   stepRef.current = step
+  const removeRef = useRef(removeSelected)
+  removeRef.current = removeSelected
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // Auto-repeat is not a second press: held down, [d] would flip the
       // drawer thirty times a second, each flip a synchronous fsync in main.
-      if (event.repeat) return
-      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return
+      if (event.repeat || event.isComposing) return
       const target = event.target as HTMLElement | null
       if (target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? '')) return
 
+      // Before the modifier guard: ⌘ is what upgrades delete to the original.
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        if (event.ctrlKey || event.altKey) return
+        event.preventDefault()
+        return void removeRef.current(event.metaKey ? 'original' : 'library')
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+
       switch (event.key.length === 1 ? event.key.toLowerCase() : event.key) {
         case 'Escape':
-          return setSelectedId(null)
+          setSelectedId(null)
+          return setSelection(NO_SELECTION)
         case 'm':
           return setDetailOpen((open) => !open)
         case 'd':
@@ -103,8 +151,9 @@ export function App() {
           columns={settings.columns}
           groupBy={groupBy}
           filters={filters}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          selectedIds={selection.ids}
+          focusedId={selectedId}
+          onSelect={onSelect}
           onColumns={onColumns}
           onGroupBy={setGroupBy}
           onFilters={setFilters}
