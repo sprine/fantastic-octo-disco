@@ -62,6 +62,13 @@ export type ImageMetadata = {
   altitudeMetres?: number
   /** Pixels per inch as the file declares it, not as a decoder guesses it. */
   dpi?: number
+  make?: string
+  model?: string
+  lens?: string
+  exposureSeconds?: number
+  fNumber?: number
+  iso?: number
+  focalLengthMm?: number
 }
 
 /**
@@ -84,12 +91,25 @@ export const readMetadata = (json: string | null | undefined): ImageMetadata => 
   for (const key of NUMERIC_METADATA) {
     if (typeof raw[key] === 'number' && Number.isFinite(raw[key])) meta[key] = raw[key]
   }
+  for (const key of STRING_METADATA) {
+    if (typeof raw[key] === 'string' && raw[key]) meta[key] = raw[key]
+  }
   if (typeof raw.captureSource === 'string') meta.captureSource = raw.captureSource as CaptureSource
   return meta
 }
 
-const NUMERIC_METADATA = ['latitude', 'longitude', 'altitudeMetres', 'dpi'] as const satisfies
-  readonly (keyof ImageMetadata)[]
+const NUMERIC_METADATA = [
+  'latitude',
+  'longitude',
+  'altitudeMetres',
+  'dpi',
+  'exposureSeconds',
+  'fNumber',
+  'iso',
+  'focalLengthMm'
+] as const satisfies readonly (keyof ImageMetadata)[]
+
+const STRING_METADATA = ['make', 'model', 'lens'] as const satisfies readonly (keyof ImageMetadata)[]
 
 export type JobRow = {
   id: number

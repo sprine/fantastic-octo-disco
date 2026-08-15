@@ -91,6 +91,50 @@ describe('resolution', () => {
   })
 })
 
+describe('camera facts', () => {
+  it('reads make, model, lens and the exposure numbers', () => {
+    const { fields } = exif({
+      Image: { Make: 'Canon', Model: 'Canon EOS 5D' },
+      Photo: {
+        LensModel: 'EF 24-70mm f/2.8L',
+        ExposureTime: 0.004,
+        FNumber: 2.8,
+        ISOSpeedRatings: 400,
+        FocalLength: 35
+      }
+    })
+    expect(fields).toMatchObject({
+      make: 'Canon',
+      model: 'Canon EOS 5D',
+      lens: 'EF 24-70mm f/2.8L',
+      exposureSeconds: 0.004,
+      fNumber: 2.8,
+      iso: 400,
+      focalLengthMm: 35
+    })
+  })
+
+  it('takes the first ISO when the tag holds a list', () => {
+    expect(exif({ Photo: { ISOSpeedRatings: [200, 0] } }).fields.iso).toBe(200)
+  })
+
+  it('trims padded strings and drops empty ones', () => {
+    const { fields } = exif({ Image: { Make: '  NIKON\0\0 ', Model: '   ' } })
+    expect(fields.make).toBe('NIKON')
+    expect(fields.model).toBeUndefined()
+  })
+
+  it('drops zero, negative and absurd camera numbers', () => {
+    const { fields } = exif({
+      Photo: { ExposureTime: 0, FNumber: -1, ISOSpeedRatings: 4e9, FocalLength: 4e9 }
+    })
+    expect(fields.exposureSeconds).toBeUndefined()
+    expect(fields.fNumber).toBeUndefined()
+    expect(fields.iso).toBeUndefined()
+    expect(fields.focalLengthMm).toBeUndefined()
+  })
+})
+
 describe('capture timestamp', () => {
   it('reads DateTimeOriginal as an instant', () => {
     const when = new Date('2024-05-01T10:00:00Z')

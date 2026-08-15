@@ -106,7 +106,7 @@ Two details worth knowing:
 ```mermaid
 flowchart LR
     A["click tile or ← →"] --> B["viewer shows display copy\n(zoom + pan, anchored)"]
-    B -- "m" --> C["metadata panel\nfile · image · capture · location"]
+    B -- "m" --> C["metadata panel\nfile · image · camera · capture · location"]
     B -- "double-click" --> D["OS opens the original"]
     B -- "right-click tile" --> E["open / remove / delete"]
 ```

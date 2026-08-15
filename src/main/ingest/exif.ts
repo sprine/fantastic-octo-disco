@@ -26,11 +26,25 @@ export function readExif(exif: Buffer | undefined): ExifFacts {
 /** Split from the buffer so the tag rules can be exercised without a file. */
 export function exifFacts(exif: ReturnType<typeof exifReader>): ExifFacts {
   const image = exif.Image ?? {}
+  const photo = exif.Photo ?? {}
   const gps = exif.GPSInfo ?? {}
   const fields: ImageMetadata = {}
 
   const dpi = resolution(image.XResolution, image.ResolutionUnit)
   if (dpi !== null) fields.dpi = dpi
+
+  // Camera facts. Strings are the camera's own labels; numbers get the same
+  // bounds treatment as everything else — a broken rational must not reach
+  // the panel as a four-billion-second exposure.
+  assignText(fields, 'make', image.Make)
+  assignText(fields, 'model', image.Model)
+  assignText(fields, 'lens', photo.LensModel)
+  assignPositive(fields, 'exposureSeconds', photo.ExposureTime, 3600)
+  assignPositive(fields, 'fNumber', photo.FNumber, 1000)
+  // The tag holds one number or a list; the first entry is the one that fired.
+  const iso = Array.isArray(photo.ISOSpeedRatings) ? photo.ISOSpeedRatings[0] : photo.ISOSpeedRatings
+  assignPositive(fields, 'iso', iso, 10_000_000)
+  assignPositive(fields, 'focalLengthMm', photo.FocalLength, 100_000)
 
   // Both or neither: half a fix is not a position.
   const latitude = coordinate(gps.GPSLatitude, gps.GPSLatitudeRef, 'S', 90)
@@ -44,6 +58,28 @@ export function exifFacts(exif: ReturnType<typeof exifReader>): ExifFacts {
   if (altitude !== null) fields.altitudeMetres = altitude
 
   return { capturedAt: timestamp(exif.Photo?.DateTimeOriginal), fields }
+}
+
+/** Trimmed and bounded: EXIF strings are fixed-width fields padded by some writers. */
+function assignText(
+  fields: ImageMetadata,
+  key: 'make' | 'model' | 'lens',
+  value: unknown
+): void {
+  if (typeof value !== 'string') return
+  const text = value.replace(/\0/g, '').trim().slice(0, 80)
+  if (text) fields[key] = text
+}
+
+function assignPositive(
+  fields: ImageMetadata,
+  key: 'exposureSeconds' | 'fNumber' | 'iso' | 'focalLengthMm',
+  value: unknown,
+  limit: number
+): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return
+  if (value <= 0 || value > limit) return
+  fields[key] = value
 }
 
 /**

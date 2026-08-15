@@ -35,6 +35,17 @@ export function buildGroups(image: ImageRow): DetailGroup[] {
       ])
     },
     {
+      title: 'Camera',
+      fields: compact([
+        ['Camera', cameraName(meta)],
+        ['Lens', meta.lens],
+        ['Exposure', exposure(meta.exposureSeconds)],
+        ['Aperture', meta.fNumber === undefined ? null : `f/${trimmed(meta.fNumber)}`],
+        ['ISO', meta.iso === undefined ? null : String(meta.iso)],
+        ['Focal length', meta.focalLengthMm === undefined ? null : `${trimmed(meta.focalLengthMm)} mm`]
+      ])
+    },
+    {
       title: 'Capture',
       fields: compact([captureField(image, meta), ['Imported', local(image.imported_at)]])
     },
@@ -73,6 +84,24 @@ function locationFields(meta: ImageMetadata): Field[] {
   }
   return fields
 }
+
+/** Most models already carry the make ("Canon EOS 5D"); don't say it twice. */
+function cameraName(meta: ImageMetadata): string | null {
+  const { make, model } = meta
+  if (!model) return make ?? null
+  if (!make || model.toLowerCase().startsWith(make.toLowerCase())) return model
+  return `${make} ${model}`
+}
+
+/** The photographer's notation: 1/250 s below a second, plain seconds above. */
+function exposure(seconds: number | undefined): string | null {
+  if (seconds === undefined) return null
+  if (seconds >= 1) return `${trimmed(seconds)} s`
+  return `1/${Math.round(1 / seconds)} s`
+}
+
+/** Up to one decimal, with a trailing .0 dropped: f/1.8 but f/8, 24 mm not 24.0 mm. */
+const trimmed = (value: number): string => String(Math.round(value * 10) / 10)
 
 const degrees = (value: number | undefined): string | null =>
   value === undefined ? null : `${value.toFixed(6)}°`

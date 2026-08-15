@@ -23,7 +23,14 @@ const base: ImageRow = {
     latitude: -33.856784,
     longitude: 151.215297,
     altitudeMetres: -42.5,
-    dpi: 300
+    dpi: 300,
+    make: 'Canon',
+    model: 'Canon EOS 5D',
+    lens: 'EF 24-70mm f/2.8L',
+    exposureSeconds: 0.004,
+    fNumber: 2.8,
+    iso: 400,
+    focalLengthMm: 35
   })
 }
 
@@ -54,6 +61,24 @@ describe('buildGroups', () => {
   it('says when the viewer is showing a reduced copy', () => {
     expect(field(base, 'Image', 'Displayed')).toBe('2560 px on the long edge')
     expect(field({ ...base, width: 2000, height: 1000 }, 'Image', 'Displayed')).toBeUndefined()
+  })
+
+  it('renders the camera group in photographer notation', () => {
+    expect(field(base, 'Camera', 'Camera')).toBe('Canon EOS 5D') // make not said twice
+    expect(field(base, 'Camera', 'Exposure')).toBe('1/250 s')
+    expect(field(base, 'Camera', 'Aperture')).toBe('f/2.8')
+    expect(field(base, 'Camera', 'ISO')).toBe('400')
+    expect(field(base, 'Camera', 'Focal length')).toBe('35 mm')
+  })
+
+  it('joins make and model when the model does not carry the make', () => {
+    const other = { ...base, metadata_json: JSON.stringify({ make: 'Nikon', model: 'D850' }) }
+    expect(field(other, 'Camera', 'Camera')).toBe('Nikon D850')
+  })
+
+  it('writes a long exposure in plain seconds', () => {
+    const long = { ...base, metadata_json: JSON.stringify({ exposureSeconds: 2.5 }) }
+    expect(field(long, 'Camera', 'Exposure')).toBe('2.5 s')
   })
 
   it('drops empty groups rather than rendering dashes', () => {
