@@ -1,17 +1,25 @@
 import { useEffect, useRef } from 'react'
 import type { Failures, ImageRow, QueueCounts } from '../../shared/types.js'
+import type { Filters, GroupKey } from '../groups.js'
 import { drawerWidth, nearestColumns } from '../layout.js'
 import { Grid } from './Grid.js'
+import { GroupBar } from './GroupBar.js'
 import { ImportFooter } from './ImportFooter.js'
 
 type Props = {
+  /** Every library row, for facet counts; `visible` is what the grid draws. */
   images: ImageRow[]
+  visible: ImageRow[]
   counts: QueueCounts
   failures: Failures
   columns: number
+  groupBy: GroupKey | null
+  filters: Filters
   selectedId: number | null
   onSelect: (id: number) => void
   onColumns: (columns: number) => void
+  onGroupBy: (key: GroupKey | null) => void
+  onFilters: (filters: Filters) => void
   onClose: () => void
   onChanged: () => void
 }
@@ -48,9 +56,21 @@ export function Drawer(props: Props) {
         </button>
       </header>
 
+      {/* Secondary by design: hidden until there is a library worth slicing. */}
+      {props.images.length > 1 && (
+        <GroupBar
+          images={props.images}
+          groupBy={props.groupBy}
+          filters={props.filters}
+          onGroupBy={props.onGroupBy}
+          onFilters={props.onFilters}
+        />
+      )}
+
       <Grid
-        images={props.images}
+        images={props.visible}
         columns={props.columns}
+        groupBy={props.groupBy}
         selectedId={props.selectedId}
         onSelect={props.onSelect}
         onChanged={props.onChanged}

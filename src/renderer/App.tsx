@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Drawer } from './components/Drawer.js'
+import { applyFilters, groupImages, type Filters, type GroupKey } from './groups.js'
 import { Rail } from './components/Rail.js'
 import { Viewer } from './components/Viewer.js'
 import { useLibrary } from './state/useLibrary.js'
@@ -10,7 +11,20 @@ export function App() {
   const { settings, update } = useSettings()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  // Session state, deliberately unpersisted: a grouping is a question being
+  // asked now, not how the library lives.
+  const [groupBy, setGroupBy] = useState<GroupKey | null>(null)
+  const [filters, setFilters] = useState<Filters>({})
 
+  // What the grid draws, in the order it draws it — grouped sections reorder
+  // the flat list, and arrow traversal must follow the eye, not the database.
+  const visible = useMemo(() => {
+    const filtered = applyFilters(images, filters)
+    return groupBy ? groupImages(filtered, groupBy).flatMap((group) => group.images) : filtered
+  }, [images, filters, groupBy])
+
+  // Looked up in the full library, so a selection filtered out of the grid
+  // keeps its viewer rather than vanishing mid-thought.
   const selected = images.find((image) => image.id === selectedId) ?? null
 
   // Stable so the divider's drag listeners survive unrelated re-renders.
@@ -20,12 +34,12 @@ export function App() {
   // move over the same ordered list the grid renders.
   const step = useCallback(
     (delta: number) => {
-      if (images.length === 0) return
-      const current = images.findIndex((image) => image.id === selectedId)
-      const next = current === -1 ? 0 : Math.min(images.length - 1, Math.max(0, current + delta))
-      setSelectedId(images[next]!.id)
+      if (visible.length === 0) return
+      const current = visible.findIndex((image) => image.id === selectedId)
+      const next = current === -1 ? 0 : Math.min(visible.length - 1, Math.max(0, current + delta))
+      setSelectedId(visible[next]!.id)
     },
-    [images, selectedId]
+    [visible, selectedId]
   )
 
   // The handler reads the latest step through a ref, so the window listener is
@@ -83,12 +97,17 @@ export function App() {
       {settings.drawerOpen ? (
         <Drawer
           images={images}
+          visible={visible}
           counts={counts}
           failures={failures}
           columns={settings.columns}
+          groupBy={groupBy}
+          filters={filters}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onColumns={onColumns}
+          onGroupBy={setGroupBy}
+          onFilters={setFilters}
           onClose={() => update(() => ({ drawerOpen: false }))}
           onChanged={refresh}
         />
