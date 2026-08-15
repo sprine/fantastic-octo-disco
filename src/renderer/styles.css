@@ -271,9 +271,14 @@ button {
   left: 16px;
 }
 
-.pill.top-right {
-  top: 16px;
-  right: 16px;
+/* The same × as the drawer header. Above the detail panel, so closing the
+   image is never blocked by its own metadata. */
+.viewer-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.75);
 }
 
 .pill.bottom-right {

@@ -176,8 +176,8 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
       <button className="pill top-left" onClick={onToggleDetail}>
         [m] metadata
       </button>
-      <button className="pill top-right" onClick={onClose}>
-        [esc] close
+      <button className="icon viewer-close" onClick={onClose} title="Close ([esc])">
+        ×
       </button>
 
       {/* Bottom right, away from the detail panel's destructive actions in the
