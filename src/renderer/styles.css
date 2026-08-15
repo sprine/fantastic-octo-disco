@@ -323,8 +323,10 @@ button {
   width: 300px;
   overflow-y: auto;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.94);
+  /* Opaque: a bright image bleeding through makes the fields hard to read. */
+  background: var(--paper);
   border-left: 1px solid var(--line);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
 }
 
 .detail h2 {
