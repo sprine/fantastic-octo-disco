@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
@@ -11,7 +11,9 @@ export function tempDir(prefix: string): { readonly path: string } {
   let path!: string
 
   beforeEach(() => {
-    path = mkdtempSync(join(tmpdir(), `ild-${prefix}-`))
+    // realpath'ed because macOS's tmpdir sits behind /var → /private/var, and
+    // canonical-path comparisons in tests must not trip over that symlink.
+    path = realpathSync(mkdtempSync(join(tmpdir(), `ild-${prefix}-`)))
   })
   afterEach(() => {
     rmSync(path, { recursive: true, force: true })

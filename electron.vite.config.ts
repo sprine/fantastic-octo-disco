@@ -7,7 +7,11 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
-        input: { index: resolve('src/main/index.ts') }
+        // worker.ts is a second entry so worker_threads can resolve it beside index.js
+        input: {
+          index: resolve('src/main/index.ts'),
+          worker: resolve('src/main/ingest/worker.ts')
+        }
       }
     }
   },
