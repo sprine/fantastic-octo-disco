@@ -1,8 +1,9 @@
 :root {
   --ink: #1e1e1e;
   --paper: #ffffff;
-  --line: #d9d9d9;
+  --line: #e2e2e2;
   --muted: #6b6b6b;
+  --faint: #f4f4f4;
   --danger: #a11;
 }
 
@@ -24,7 +25,496 @@ body {
   height: 100vh;
 }
 
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---- drawer ---------------------------------------------------------- */
+.drawer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+
+.drawer-header h1 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  margin: 0;
+}
+
+.icon {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.icon:hover {
+  background: var(--faint);
+  color: var(--ink);
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 40px;
+  padding-top: 14px;
+  border-right: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.rail-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---- grid ------------------------------------------------------------ */
+.grid {
+  display: grid;
+  justify-content: center;
+  overflow-y: auto;
+  /* The drawer's 1px border eats a pixel of what drawerWidth() budgeted;
+     'auto' would show a scrollbar for that pixel as readily as for a column. */
+  overflow-x: hidden;
+  padding: 8px 16px 16px;
+  flex: 1;
+  align-content: start;
+}
+
+.tile {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  padding: 0;
+  background: var(--faint);
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* contained, never cropped */
+  display: block;
+}
+
+.tile.selected {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.tile.targeted {
+  outline: 2px dashed var(--muted);
+  outline-offset: 2px;
+}
+
+.tile-placeholder {
+  display: block;
+  padding: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #fff;
+}
+
+.badge.modified {
+  background: #a60;
+}
+
+.badge.missing {
+  background: var(--danger);
+}
+
+/* ---- menus ----------------------------------------------------------- */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+.tile-menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 180px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+}
+
+.tile-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tile-menu button:hover {
+  background: var(--faint);
+}
+
+.tile-menu hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+
+.tile-menu .danger {
+  color: var(--danger);
+}
+
+/* ---- viewer ---------------------------------------------------------- */
 .viewer {
   position: relative;
   flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.stage.pannable {
+  cursor: grab;
+}
+
+.stage.pannable:active {
+  cursor: grabbing;
+}
+
+.stage img {
+  max-width: 100%;
+  max-height: 100%;
+  will-change: transform;
+}
+
+.stage-placeholder {
+  max-width: 360px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Overlay chrome stays faint until the pointer asks for it: the picture is
+   the interface. */
+.pill {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(30, 30, 30, 0.55);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 120ms ease;
+}
+
+.pill:hover,
+.viewer:hover .pill {
+  opacity: 0.9;
+}
+
+.pill.top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.pill.top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.pill.bottom-right {
+  bottom: 16px;
+  right: 16px;
+}
+
+.pill.zoom {
+  gap: 2px;
+  padding: 2px 6px;
+}
+
+.pill.zoom button {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.pill.zoom button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.ceiling {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(30, 30, 30, 0.55);
+  color: #fff;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+/* ---- detail panel ---------------------------------------------------- */
+.detail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 300px;
+  overflow-y: auto;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  border-left: 1px solid var(--line);
+}
+
+.detail h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.detail section:first-child h2 {
+  margin-top: 0;
+}
+
+.detail dl {
+  margin: 0;
+}
+
+.detail dl > div {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.detail dt {
+  flex: 0 0 84px;
+  color: var(--muted);
+}
+
+.detail dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
+.detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.detail-actions button {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  cursor: pointer;
+  text-align: left;
+}
+
+.detail-actions button:hover {
+  background: var(--faint);
+}
+
+.detail-actions .danger {
+  color: var(--danger);
+}
+
+/* ---- empty state ----------------------------------------------------- */
+.empty {
+  margin: auto;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-title {
+  font-size: 16px;
+  margin: 0 0 14px;
+}
+
+.keymap {
+  list-style: none;
+  display: flex;
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+  justify-content: center;
+  font-size: 12px;
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--faint);
+  font: 11px/1.4 ui-monospace, monospace;
+}
+
+/* ---- import footer --------------------------------------------------- */
+.import-footer {
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.import {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.import:hover {
+  background: var(--faint);
+}
+
+.progress {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.progress-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--faint);
+  z-index: -1;
+  transition: width 300ms ease;
+}
+
+.progress span,
+.progress .link {
+  position: relative;
+}
+
+.link {
+  border: none;
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+.failures {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.failures ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.failures li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.failures li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failures li em {
+  color: var(--muted);
+  font-style: normal;
+  flex-shrink: 0;
+}
+
+.notice {
+  color: var(--danger);
+  font-size: 12px;
+  margin: 6px 0 0;
+  user-select: text;
 }
