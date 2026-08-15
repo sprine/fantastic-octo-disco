@@ -44,6 +44,7 @@ export function registerIpc({ db, q, queue, settings, invalidate }: Context): vo
   ipcMain.handle(CHANNELS.ingestFailures, () => queue.failures())
   ipcMain.handle(CHANNELS.ingestRetry, (_event, jobId: number) => queue.retry(jobId))
   ipcMain.handle(CHANNELS.ingestDismiss, (_event, jobId: number) => void queue.dismiss(jobId))
+  ipcMain.handle(CHANNELS.ingestDismissAll, () => queue.dismissAll())
   ipcMain.handle(CHANNELS.ingestCancelPending, () => queue.cancelPending())
 
   ipcMain.handle(CHANNELS.shellOpenOriginal, (_event, id: number) => openOriginal(q, id))

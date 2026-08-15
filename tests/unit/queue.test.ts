@@ -185,6 +185,22 @@ describe('retry and dismiss', () => {
     expect(queue.enqueue(path('bad.jpg'))).not.toBeNull() // not a duplicate any more
   })
 
+  it('dismiss all clears every kind of failure and frees the files for re-import', () => {
+    const queue = new Queue(fixture.db)
+    // A decode failure with an image behind it, and a rejection without one.
+    queue.enqueue(path('bad.jpg'))
+    const job = queue.claim('w1')!
+    queue.fail(job.id, job.image_id, 'decode error', 'w1')
+    queue.recordFailures([{ path: path('huge.jpg'), reason: 'too-large' }])
+    // Live work must survive the sweep.
+    queue.enqueue(path('live.jpg'))
+
+    expect(queue.dismissAll()).toBe(2)
+    expect(queue.failures().total).toBe(0)
+    expect(queue.counts().pending).toBe(1)
+    expect(queue.enqueue(path('bad.jpg'))).not.toBeNull() // not a duplicate any more
+  })
+
   it('dismiss refuses live work', () => {
     const queue = new Queue(fixture.db)
     queue.enqueue(path('a.jpg'))

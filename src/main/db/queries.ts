@@ -135,6 +135,18 @@ export function createQueries(db: DatabaseSync) {
     dismissFailure: db.prepare(`
       DELETE FROM ingestion_log WHERE id = ? AND state = 'failed' RETURNING image_id`),
 
+    // The batch form of dismissal, same two-table story: images first (their
+    // FK cascade takes the jobs with them), never touching a 'ready' row, then
+    // whatever failed rows remain — rejections with no image, and jobs whose
+    // image finished despite them.
+    dismissAllFailedImages: db.prepare(`
+      DELETE FROM images
+       WHERE status <> 'ready'
+         AND id IN (SELECT image_id FROM ingestion_log
+                     WHERE state = 'failed' AND image_id IS NOT NULL)`),
+
+    dismissAllFailures: db.prepare(`DELETE FROM ingestion_log WHERE state = 'failed'`),
+
     // Dismissal takes the images row too, else the unique index keeps rejecting
     // the file as a duplicate forever. Guards a 'ready' row: fail() writes two
     // statements without a transaction, so a busy database can leave the job

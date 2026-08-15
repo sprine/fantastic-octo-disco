@@ -15,6 +15,7 @@ const api: Api = {
     failures: () => ipcRenderer.invoke(CHANNELS.ingestFailures),
     retry: (jobId) => ipcRenderer.invoke(CHANNELS.ingestRetry, jobId),
     dismiss: (jobId) => ipcRenderer.invoke(CHANNELS.ingestDismiss, jobId),
+    dismissAll: () => ipcRenderer.invoke(CHANNELS.ingestDismissAll),
     cancelPending: () => ipcRenderer.invoke(CHANNELS.ingestCancelPending),
     onEvent: (listener) => {
       const wrapped = (_event: unknown, payload: Parameters<typeof listener>[0]) => listener(payload)

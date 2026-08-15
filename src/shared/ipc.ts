@@ -23,6 +23,8 @@ export type Api = {
     retry(jobId: number): Promise<void>
     /** Drops the failure and its image row, so the file can be imported again. */
     dismiss(jobId: number): Promise<void>
+    /** The whole failures list at once. Resolves to how many were dismissed. */
+    dismissAll(): Promise<number>
     cancelPending(): Promise<number>
     /** Returns an unsubscribe function. */
     onEvent(listener: (event: { type: 'done' | 'failed'; jobId: number }) => void): () => void
@@ -57,6 +59,7 @@ export const CHANNELS = {
   ingestFailures: 'ingest:failures',
   ingestRetry: 'ingest:retry',
   ingestDismiss: 'ingest:dismiss',
+  ingestDismissAll: 'ingest:dismissAll',
   ingestCancelPending: 'ingest:cancelPending',
   shellOpenOriginal: 'shell:openOriginal',
   shellShowInFolder: 'shell:showInFolder',

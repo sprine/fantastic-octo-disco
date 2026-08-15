@@ -85,6 +85,16 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
               ? `${failures.items.length} of ${failures.total} failed`
               : `${failures.total} failed`}
           </button>
+          <button
+            className="link dismiss-all"
+            onClick={async () => {
+              await window.api.ingest.dismissAll()
+              setShowFailures(false)
+              onChanged()
+            }}
+          >
+            dismiss all
+          </button>
           {showFailures && (
             <ul>
               {failures.items.map((job) => (

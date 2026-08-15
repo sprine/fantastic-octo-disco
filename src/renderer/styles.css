@@ -497,6 +497,10 @@ kbd {
   font-size: 12px;
 }
 
+.failures .dismiss-all {
+  margin-left: 10px;
+}
+
 .failures ul {
   list-style: none;
   margin: 6px 0 0;
