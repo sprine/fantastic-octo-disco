@@ -23,7 +23,8 @@ const api: Api = {
     }
   },
   shell: {
-    openOriginal: (id) => ipcRenderer.invoke(CHANNELS.shellOpenOriginal, id)
+    openOriginal: (id) => ipcRenderer.invoke(CHANNELS.shellOpenOriginal, id),
+    showInFolder: (id) => ipcRenderer.invoke(CHANNELS.shellShowInFolder, id)
   },
   settings: {
     get: () => ipcRenderer.invoke(CHANNELS.settingsGet),

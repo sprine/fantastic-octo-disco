@@ -125,6 +125,9 @@ export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: 
         <button onClick={() => attempt('open', () => window.api.shell.openOriginal(image.id))}>
           Open original
         </button>
+        <button onClick={() => attempt('show', () => window.api.shell.showInFolder(image.id))}>
+          Show in folder
+        </button>
         <button onClick={() => remove('library')}>Remove from library</button>
         <button className="danger" onClick={() => remove('original')}>
           Delete original

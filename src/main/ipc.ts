@@ -6,7 +6,7 @@ import { SUPPORTED_EXTENSIONS, type DeleteMode, type EnqueueResult } from '../sh
 import type { Queries } from './db/queries.js'
 import { addPaths } from './ingest/addPaths.js'
 import type { Queue } from './ingest/queue.js'
-import { checkDrift, listLibrary, openOriginal, removeImage } from './library.js'
+import { checkDrift, listLibrary, openOriginal, removeImage, showInFolder } from './library.js'
 import type { SettingsStore } from './settings.js'
 
 export type Context = {
@@ -47,6 +47,7 @@ export function registerIpc({ db, q, queue, settings, invalidate }: Context): vo
   ipcMain.handle(CHANNELS.ingestCancelPending, () => queue.cancelPending())
 
   ipcMain.handle(CHANNELS.shellOpenOriginal, (_event, id: number) => openOriginal(q, id))
+  ipcMain.handle(CHANNELS.shellShowInFolder, (_event, id: number) => showInFolder(q, id))
 
   ipcMain.handle(CHANNELS.settingsGet, () => settings.read())
   // Returns nothing: the renderer already holds the value it asked for, and

@@ -81,6 +81,12 @@ export function TileMenu({ target, onClose, onChanged }: Props) {
       >
         Open original
       </button>
+      <button
+        role="menuitem"
+        onClick={() => attempt('show', () => window.api.shell.showInFolder(target.id))}
+      >
+        Show in folder
+      </button>
       <button role="menuitem" onClick={() => remove('library')}>
         Remove from library
       </button>

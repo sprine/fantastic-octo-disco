@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, shell } from 'electron'
+import { existsSync } from 'node:fs'
 import { rm, stat } from 'node:fs/promises'
 import type { DatabaseSync } from 'node:sqlite'
 import { getImageRow, type Queries } from './db/queries.js'
@@ -51,6 +52,18 @@ export async function openOriginal(q: Queries, id: number): Promise<void> {
   if (!row) throw new Error('This image is no longer in the library')
   const problem = await shell.openPath(row.source_path)
   if (problem) throw new Error(problem)
+}
+
+/**
+ * Reveal in Finder / Explorer. showItemInFolder is fire-and-forget and does
+ * nothing quietly for a path that is gone, so the existence check is what
+ * turns a moved file into an answer instead of a dead menu item.
+ */
+export function showInFolder(q: Queries, id: number): void {
+  const row = getImageRow(q, id)
+  if (!row) throw new Error('This image is no longer in the library')
+  if (!existsSync(row.source_path)) throw new Error(`No file at ${row.source_path}`)
+  shell.showItemInFolder(row.source_path)
 }
 
 /**

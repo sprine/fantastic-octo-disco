@@ -30,6 +30,8 @@ export type Api = {
   shell: {
     /** The only route to a TIF at full fidelity. */
     openOriginal(id: number): Promise<void>
+    /** Reveal the original in Finder / Explorer. */
+    showInFolder(id: number): Promise<void>
   }
   settings: {
     get(): Promise<UiSettings>
@@ -57,6 +59,7 @@ export const CHANNELS = {
   ingestDismiss: 'ingest:dismiss',
   ingestCancelPending: 'ingest:cancelPending',
   shellOpenOriginal: 'shell:openOriginal',
+  shellShowInFolder: 'shell:showInFolder',
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   /** Push, not invoke: main to renderer. Named here so both sides cannot drift. */
