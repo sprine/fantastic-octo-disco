@@ -50,7 +50,7 @@ async function start(): Promise<void> {
   const { invalidate } = registerImgProtocol(q)
   registerIpc({ db, q, queue, settings: openSettings(settingsFile()), invalidate })
 
-  createWindow()
+  const window = createWindow()
   // Reads the live window rather than capturing this one: `activate` can build
   // a replacement, and a captured const would pin the destroyed original.
   pool = new WorkerPool(dbFile(), thumbnailsDir(), (event) => {
@@ -73,6 +73,11 @@ async function start(): Promise<void> {
     }
   }, CLAIM_TIMEOUT_MS)
   app.once('before-quit', () => clearInterval(sweep))
+
+  if (process.env.SMOKE === '1') {
+    const { runSmoke } = await import('./smoke.js')
+    await runSmoke({ db, q, queue, window })
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
