@@ -11,12 +11,11 @@ type Props = {
   image: ImageRow | null
   detailOpen: boolean
   onToggleDetail: () => void
-  onClose: () => void
   onChanged: () => void
   libraryEmpty: boolean
 }
 
-export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, libraryEmpty }: Props) {
+export function Viewer({ image, detailOpen, onToggleDetail, onChanged, libraryEmpty }: Props) {
   const [view, setView] = useState<View>(FIT)
   const [broken, setBroken] = useState(false)
   const [ceiling, setCeiling] = useState<number | null>(null)
@@ -174,7 +173,9 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
       </div>
 
       {/* A sidebar glyph, filled while the panel is out: the control reads as
-          the thing it toggles, the way every editor's panel button does. */}
+          the thing it toggles, the way every editor's panel button does.
+          No close button beside it — [esc] closes, and the grid is always in
+          view to click back to. */}
       <button
         className={`icon viewer-detail${detailOpen ? ' active' : ''}`}
         onClick={onToggleDetail}
@@ -184,9 +185,6 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
           <rect x="1.5" y="2.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" />
           <rect x="9.5" y="2.5" width="5" height="11" rx="1.5" fill={detailOpen ? 'currentColor' : 'none'} stroke="currentColor" />
         </svg>
-      </button>
-      <button className="icon viewer-close" onClick={onClose} title="Close ([esc])">
-        ×
       </button>
 
       {/* Bottom right, away from the detail panel's destructive actions in the

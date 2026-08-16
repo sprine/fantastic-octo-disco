@@ -107,13 +107,15 @@ button {
   gap: 2px 10px;
 }
 
+/* No side padding: the first label's text must sit on the same 16px inset as
+   the title above and the group labels below. */
 .group-bar button {
   border: none;
   background: none;
   font-size: 11px;
   color: var(--muted);
   cursor: pointer;
-  padding: 1px 2px;
+  padding: 1px 0;
 }
 
 .group-bar button:hover {
@@ -145,8 +147,11 @@ button {
   overflow-y: auto;
 }
 
+/* A chip is a box, so it carries its own padding; the box edge, not the text,
+   takes the shared inset. */
 .chip {
   background: var(--faint);
+  padding: 1px 4px;
 }
 
 .chip em {
@@ -164,7 +169,10 @@ button {
 /* ---- grid ------------------------------------------------------------ */
 .grid {
   display: grid;
-  justify-content: center;
+  /* Start, not center: a layout scrollbar narrows the content box, and a
+     centred track set would drift half its width out of line with the header
+     and group bar above. */
+  justify-content: start;
   overflow-y: auto;
   /* The drawer's 1px border eats a pixel of what drawerWidth() budgeted;
      'auto' would show a scrollbar for that pixel as readily as for a column. */
@@ -346,22 +354,13 @@ button {
   opacity: 0.9;
 }
 
-/* The same × as the drawer header, with the panel toggle beside it. Both sit
-   above the detail panel, so neither is ever blocked by the metadata. */
-.viewer-close,
+/* Above the detail panel, so it is never blocked by the metadata it toggles. */
 .viewer-detail {
   position: absolute;
   top: 14px;
+  right: 14px;
   z-index: 3;
   background: rgba(255, 255, 255, 0.75);
-}
-
-.viewer-close {
-  right: 14px;
-}
-
-.viewer-detail {
-  right: 46px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -172,7 +172,6 @@ export function App() {
         image={selected}
         detailOpen={detailOpen}
         onToggleDetail={() => setDetailOpen((open) => !open)}
-        onClose={() => setSelectedId(null)}
         onChanged={refresh}
         libraryEmpty={images.length === 0}
       />
