@@ -1,5 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
-import type { ImageRow } from '../../shared/types.js'
+import { CLEARS_ON_IMPORT, type ImageRow } from '../../shared/types.js'
+
+/**
+ * The self-clearing reasons as a SQL list, built from the same constant the
+ * `clearsOnImport` predicate tests: the two statements below must agree with it
+ * exactly, or a refresh matches nothing and the failures list grows a duplicate
+ * complaint per re-drop. No user input reaches this.
+ */
+const SELF_CLEARING = CLEARS_ON_IMPORT.map((reason) => `'${reason}'`).join(',')
 
 /**
  * Work that outlived a cancel. Not a run: no progress strip counts it, but the
@@ -62,7 +70,7 @@ export function createQueries(db: DatabaseSync) {
       UPDATE ingestion_log
          SET state = 'failed', error = ?, session = ?, enqueued_at = ?, finished_at = ?
        WHERE canonical_path = ? AND image_id IS NULL
-         AND (error IN ('too-large','unreadable')) = ?
+         AND (error IN (${SELF_CLEARING})) = ?
       RETURNING id`),
 
     // A WAL reader takes no write lock; the claim below opens a write
@@ -170,7 +178,7 @@ export function createQueries(db: DatabaseSync) {
     clearRejection: db.prepare(`
       DELETE FROM ingestion_log
        WHERE canonical_path = ? AND image_id IS NULL
-         AND error IN ('too-large','unreadable')`),
+         AND error IN (${SELF_CLEARING})`),
 
     // A folder that reads is no longer unreadable; a later walk proves exactly that.
     clearFolderComplaint: db.prepare(`
@@ -195,8 +203,6 @@ export function createQueries(db: DatabaseSync) {
       UPDATE ingestion_log SET state = 'done', finished_at = ?
        WHERE state IN ('pending','claimed')
          AND image_id IN (SELECT id FROM images WHERE status = 'ready')`),
-
-    getJob: db.prepare('SELECT * FROM ingestion_log WHERE id = ?'),
 
     counts: db.prepare(`
       SELECT state, COUNT(*) AS n FROM ingestion_log WHERE session = ? GROUP BY state`),

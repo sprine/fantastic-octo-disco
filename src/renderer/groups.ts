@@ -18,11 +18,22 @@ export const GROUP_LABELS: Record<GroupKey, string> = {
   format: 'format'
 }
 
+const MONTH = new Intl.DateTimeFormat(undefined, { month: 'short' })
+
+// Every pass over the page asks for the same handful of labels, and formatting
+// one costs about thirty times what looking it up does.
+const labels = new Map<number, string>()
+
 /** Months, not days: a bar of one chip per day is a list, not a grouping. */
 const month = (at: number | null): string => {
   if (at === null) return 'unknown'
-  const date = new Date(at)
-  return `${date.toLocaleString(undefined, { month: 'short' })} ${date.getFullYear()}`
+  let label = labels.get(at)
+  if (label === undefined) {
+    const date = new Date(at)
+    label = `${MONTH.format(date)} ${date.getFullYear()}`
+    labels.set(at, label)
+  }
+  return label
 }
 
 export function groupValue(image: ImageRow, key: GroupKey): string {

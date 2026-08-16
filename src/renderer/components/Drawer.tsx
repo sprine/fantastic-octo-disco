@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Failures, ImageRow, QueueCounts } from '../../shared/types.js'
-import type { Filters, GroupKey } from '../groups.js'
+import type { Filters, Grouped, GroupKey } from '../groups.js'
 import { drawerWidth, nearestColumns } from '../layout.js'
 import { Grid } from './Grid.js'
 import { GroupBar } from './GroupBar.js'
@@ -10,6 +10,8 @@ type Props = {
   /** Every library row, for facet counts; `visible` is what the grid draws. */
   images: ImageRow[]
   visible: ImageRow[]
+  /** The same rows as sections, or null when nothing is grouped. Grouped once, in App. */
+  grouped: Grouped[] | null
   counts: QueueCounts
   failures: Failures
   columns: number
@@ -70,8 +72,8 @@ export function Drawer(props: Props) {
 
       <Grid
         images={props.visible}
+        grouped={props.grouped}
         columns={props.columns}
-        groupBy={props.groupBy}
         selectedIds={props.selectedIds}
         focusedId={props.focusedId}
         onSelect={props.onSelect}

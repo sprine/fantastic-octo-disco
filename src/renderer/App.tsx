@@ -7,6 +7,7 @@ import { extendTo, NO_SELECTION, selectOne, type Selection } from './selection.j
 import type { DeleteMode } from '../shared/types.js'
 import { useLibrary } from './state/useLibrary.js'
 import { useSettings } from './state/useSettings.js'
+import { clamp } from './zoom.js'
 
 export function App() {
   const { images, counts, failures, refresh } = useLibrary()
@@ -21,11 +22,14 @@ export function App() {
   const [groupBy, setGroupBy] = useState<GroupKey | null>(null)
   const [filters, setFilters] = useState<Filters>({})
 
-  // What the grid draws, in the order it draws it — grouped sections reorder
-  // the flat list, and arrow traversal must follow the eye, not the database.
-  const visible = useMemo(() => {
+  // The grid's sections and the flat order it draws them in, derived together
+  // so the bucketing runs once: grouped sections reorder the flat list, and
+  // arrow traversal must follow the eye, not the database.
+  const { grouped, visible } = useMemo(() => {
     const filtered = applyFilters(images, filters)
-    return groupBy ? groupImages(filtered, groupBy).flatMap((group) => group.images) : filtered
+    if (!groupBy) return { grouped: null, visible: filtered }
+    const sections = groupImages(filtered, groupBy)
+    return { grouped: sections, visible: sections.flatMap((group) => group.images) }
   }, [images, filters, groupBy])
 
   // Looked up in the full library, so a selection filtered out of the grid
@@ -51,7 +55,7 @@ export function App() {
     (delta: number) => {
       if (visible.length === 0) return
       const current = visible.findIndex((image) => image.id === selectedId)
-      const next = current === -1 ? 0 : Math.min(visible.length - 1, Math.max(0, current + delta))
+      const next = current === -1 ? 0 : clamp(current + delta, 0, visible.length - 1)
       setSelectedId(visible[next]!.id)
       setSelection(selectOne(visible[next]!.id))
     },
@@ -146,6 +150,7 @@ export function App() {
         <Drawer
           images={images}
           visible={visible}
+          grouped={grouped}
           counts={counts}
           failures={failures}
           columns={settings.columns}

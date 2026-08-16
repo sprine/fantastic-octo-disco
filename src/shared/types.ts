@@ -147,8 +147,10 @@ export type RejectReason =
  * Everything else names a folder or a walk boundary, which a later import
  * cannot be read as answering.
  */
+export const CLEARS_ON_IMPORT: readonly RejectReason[] = ['too-large', 'unreadable']
+
 export const clearsOnImport = (reason: string): boolean =>
-  reason === 'too-large' || reason === 'unreadable'
+  (CLEARS_ON_IMPORT as readonly string[]).includes(reason)
 
 /** Walk guards, recorded like rejections: a truncated import that looks complete is data loss. */
 export type GuardReason = 'walk-depth' | 'walk-count'

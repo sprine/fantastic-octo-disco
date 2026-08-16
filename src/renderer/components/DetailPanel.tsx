@@ -1,6 +1,5 @@
-import { useState } from 'react'
-import { readMetadata, type DeleteMode, type ImageMetadata, type ImageRow } from '../../shared/types.js'
-import { errorMessage } from '../../shared/errors.js'
+import { readMetadata, type ImageMetadata, type ImageRow } from '../../shared/types.js'
+import { IMAGE_ACTIONS, useAttempt } from '../actions.js'
 import { basename, megabytes } from '../format.js'
 import { displayCeiling } from '../resolution.js'
 
@@ -61,9 +60,8 @@ export function buildGroups(image: ImageRow): DetailGroup[] {
  * real instant and belongs in local time.
  */
 function captureField(image: ImageRow, meta: ImageMetadata): Field {
-  if (image.captured_at === null) return ['Captured', null]
-  // The import-time fallback: the row below already says when.
-  if (meta.captureSource === 'import') return ['Captured', null]
+  // The import-time fallback says nothing the row below does not: it already says when.
+  if (image.captured_at === null || meta.captureSource === 'import') return ['Captured', null]
   if (meta.captureSource !== 'exif') return ['File date', local(image.captured_at)]
   return ['Captured', new Date(image.captured_at).toLocaleString(undefined, { timeZone: 'UTC' })]
 }
@@ -113,24 +111,7 @@ function compact(pairs: Field[]): { label: string; value: string }[] {
 }
 
 export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: () => void }) {
-  const [failed, setFailed] = useState<string | null>(null)
-
-  // Every action reports its failure here: a silent catch reads to the user
-  // as the button doing nothing, which is the bug this notice exists to end.
-  const attempt = async (verb: string, action: () => Promise<unknown>, then?: () => void) => {
-    setFailed(null)
-    try {
-      await action()
-    } catch (error) {
-      return setFailed(`Could not ${verb}: ${errorMessage(error)}`)
-    }
-    then?.()
-  }
-
-  // No confirmation here: 'original' confirms in main, and removeImage
-  // rethrows when trashing fails.
-  const remove = (mode: DeleteMode) =>
-    attempt('remove', () => window.api.library.remove([image.id], mode), onChanged)
+  const [failed, attempt] = useAttempt(onChanged)
 
   return (
     <div className="detail">
@@ -149,18 +130,16 @@ export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: 
       ))}
       {failed && <p className="notice">{failed}</p>}
 
-      {/* Two commands one word apart: naming carries the safety margin. */}
       <div className="detail-actions">
-        <button onClick={() => attempt('open', () => window.api.shell.openOriginal(image.id))}>
-          Open original
-        </button>
-        <button onClick={() => attempt('show', () => window.api.shell.showInFolder(image.id))}>
-          Show in folder
-        </button>
-        <button onClick={() => remove('library')}>Remove from library</button>
-        <button className="danger" onClick={() => remove('original')}>
-          Delete original
-        </button>
+        {IMAGE_ACTIONS.map((action) => (
+          <button
+            key={action.label}
+            className={action.danger ? 'danger' : undefined}
+            onClick={() => attempt(action, image.id)}
+          >
+            {action.label}
+          </button>
+        ))}
       </div>
     </div>
   )

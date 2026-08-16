@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import sharp from 'sharp'
 import { canonicalisePath } from './canonicalPath.js'
-import { userVersion, type Queries } from './db/queries.js'
+import { getImageRow, userVersion, type Queries } from './db/queries.js'
 import type { Queue } from './ingest/queue.js'
 import { errorMessage } from '../shared/errors.js'
 import type { ImageRow } from '../shared/types.js'
@@ -77,10 +77,14 @@ export async function runSmoke(ctx: {
       .toFile(source)
     ctx.queue.enqueue(source)
 
-    const find = () =>
-      ctx.db
-        .prepare('SELECT id, status, thumb_path, display_path FROM images WHERE source_path = ?')
-        .get(source) as Pick<ImageRow, 'id' | 'status' | 'thumb_path' | 'display_path'> | undefined
+    // Through the prepared queries, not fresh SQL: a column rename must break
+    // here at compile time rather than at boot, in the one file whose job is to
+    // prove the wiring holds.
+    const canonicalSource = canonicalisePath(source)
+    const find = (): ImageRow | null => {
+      const row = ctx.q.imageIdForPath.get(canonicalSource) as { id: number } | undefined
+      return row ? getImageRow(ctx.q, row.id) : null
+    }
     checks.workerProcessed = await waitFor(() => find()?.status === 'ready')
 
     // The crash-ordering promise in one assertion: a ready row's derivatives

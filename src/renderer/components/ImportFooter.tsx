@@ -39,6 +39,14 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
   const settled = counts.done + counts.failed
   const total = outstanding + settled
 
+  // Every ingest mutation is followed by a refresh; stating the rule once means
+  // a new button cannot quietly forget it.
+  const then = (run: () => Promise<unknown>, also?: () => void) => async () => {
+    await run()
+    also?.()
+    onChanged()
+  }
+
   const pick = async () => {
     setFailed(null)
     try {
@@ -58,13 +66,7 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
           <span>
             {settled} / {total}
           </span>
-          <button
-            className="link"
-            onClick={async () => {
-              await window.api.ingest.cancelPending()
-              onChanged()
-            }}
-          >
+          <button className="link" onClick={then(() => window.api.ingest.cancelPending())}>
             cancel
           </button>
         </div>
@@ -87,11 +89,7 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
           </button>
           <button
             className="link dismiss-all"
-            onClick={async () => {
-              await window.api.ingest.dismissAll()
-              setShowFailures(false)
-              onChanged()
-            }}
+            onClick={then(() => window.api.ingest.dismissAll(), () => setShowFailures(false))}
           >
             dismiss all
           </button>
@@ -104,23 +102,11 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
                   {/* A rejected file was never enqueued: there is no job to
                       run again, so retry would only fail a second way. */}
                   {job.image_id !== null && (
-                    <button
-                      className="link"
-                      onClick={async () => {
-                        await window.api.ingest.retry(job.id)
-                        onChanged()
-                      }}
-                    >
+                    <button className="link" onClick={then(() => window.api.ingest.retry(job.id))}>
                       retry
                     </button>
                   )}
-                  <button
-                    className="link"
-                    onClick={async () => {
-                      await window.api.ingest.dismiss(job.id)
-                      onChanged()
-                    }}
-                  >
+                  <button className="link" onClick={then(() => window.api.ingest.dismiss(job.id))}>
                     dismiss
                   </button>
                 </li>

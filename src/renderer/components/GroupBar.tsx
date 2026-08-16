@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { ImageRow } from '../../shared/types.js'
 import { facets, GROUP_KEYS, GROUP_LABELS, type Filters, type GroupKey } from '../groups.js'
 
@@ -17,6 +18,13 @@ type Props = {
  */
 export function GroupBar({ images, groupBy, filters, onGroupBy, onFilters }: Props) {
   const filtered = GROUP_KEYS.some((key) => filters[key])
+
+  // Counted over the whole library, so this is the one pass in the drawer that
+  // scales with it — not something to redo on every keypress and menu open.
+  const chips = useMemo(
+    () => (groupBy ? facets(images, filters, groupBy) : []),
+    [images, filters, groupBy]
+  )
 
   const toggleChip = (key: GroupKey, value: string) => {
     const next = { ...filters }
@@ -47,7 +55,7 @@ export function GroupBar({ images, groupBy, filters, onGroupBy, onFilters }: Pro
 
       {groupBy && (
         <div className="group-chips">
-          {facets(images, filters, groupBy).map(({ value, count }) => (
+          {chips.map(({ value, count }) => (
             <button
               key={value}
               className={`chip${filters[groupBy] === value ? ' active' : ''}`}

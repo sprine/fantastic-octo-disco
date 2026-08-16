@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react'
 import type { ImageRow } from '../../shared/types.js'
-import { groupImages, type GroupKey } from '../groups.js'
+import type { Grouped } from '../groups.js'
 import { GUTTER, ROW_GAP, TILE } from '../layout.js'
 import { Tile } from './Tile.js'
 import { TileMenu, type MenuTarget } from './TileMenu.js'
 
 type Props = {
   images: ImageRow[]
+  /** Grouped in App, where the flat draw order is derived from the same pass. */
+  grouped: Grouped[] | null
   columns: number
-  groupBy: GroupKey | null
   selectedIds: ReadonlySet<number>
   focusedId: number | null
   onSelect: (id: number, shift: boolean) => void
@@ -19,13 +20,13 @@ type Props = {
  * Deliberately not virtualised: plain DOM holds a 120Hz frame budget at 5000
  * tiles (measured upstream), and the page size caps the list at 500 anyway.
  */
-export function Grid({ images, columns, groupBy, selectedIds, focusedId, onSelect, onChanged }: Props) {
+export function Grid({ images, grouped, columns, selectedIds, focusedId, onSelect, onChanged }: Props) {
   const [menu, setMenu] = useState<MenuTarget | null>(null)
 
-  // Stable, or every memoised tile re-renders on each menu open.
-  const onMenu = useCallback((target: MenuTarget) => setMenu(target), [])
   const close = useCallback(() => setMenu(null), [])
 
+  // onSelect and setMenu pass through unwrapped: both are stable, and a fresh
+  // callback here re-renders every memoised tile.
   const tile = (image: ImageRow) => (
     <Tile
       key={image.id}
@@ -34,7 +35,7 @@ export function Grid({ images, columns, groupBy, selectedIds, focusedId, onSelec
       focused={image.id === focusedId}
       menuOpen={menu?.id === image.id}
       onSelect={onSelect}
-      onMenu={onMenu}
+      onMenu={setMenu}
     />
   )
 
@@ -47,10 +48,9 @@ export function Grid({ images, columns, groupBy, selectedIds, focusedId, onSelec
         rowGap: ROW_GAP
       }}
     >
-      {/* onSelect passes through unwrapped so memoised tiles keep a stable prop. */}
-      {groupBy === null
+      {grouped === null
         ? images.map(tile)
-        : groupImages(images, groupBy).map((group) => (
+        : grouped.map((group) => (
             <div key={group.value} className="grid-section" style={{ display: 'contents' }}>
               <div className="group-label">
                 {group.value} <em>{group.images.length}</em>
