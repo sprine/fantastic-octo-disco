@@ -32,9 +32,10 @@ type Props = { counts: QueueCounts; failures: Failures; onChanged: () => void }
  */
 export function ImportFooter({ counts, failures, onChanged }: Props) {
   const [showFailures, setShowFailures] = useState(false)
+  const { failed, run } = useAttempt(onChanged)
   // Every ingest mutation reports its failure and is followed by a refresh;
-  // routing each button through `run` states both rules once.
-  const [failed, , run] = useAttempt(onChanged)
+  // stating both rules here once means a new button cannot quietly forget them.
+  const mutate = (verb: string, command: () => Promise<unknown>) => run(verb, command, true)
   const outstanding = counts.pending + counts.claimed
   // A failure is settled work: leaving it out would stall the bar short of its
   // own total for the rest of the run.
@@ -49,12 +50,12 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
           <span>
             {settled} / {total}
           </span>
-          <button className="link" onClick={() => void run('cancel', () => window.api.ingest.cancelPending(), true)}>
+          <button className="link" onClick={() => void mutate('cancel', () => window.api.ingest.cancelPending())}>
             cancel
           </button>
         </div>
       ) : (
-        <button className="import" onClick={() => void run('import', () => window.api.ingest.pickAndAdd(), true)}>
+        <button className="import" onClick={() => void mutate('import', () => window.api.ingest.pickAndAdd())}>
           + Import images
         </button>
       )}
@@ -73,7 +74,7 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
           <button
             className="link dismiss-all"
             onClick={async () => {
-              if (await run('dismiss', () => window.api.ingest.dismissAll(), true)) setShowFailures(false)
+              if (await mutate('dismiss', () => window.api.ingest.dismissAll())) setShowFailures(false)
             }}
           >
             dismiss all
@@ -87,11 +88,11 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
                   {/* A rejected file was never enqueued: there is no job to
                       run again, so retry would only fail a second way. */}
                   {job.image_id !== null && (
-                    <button className="link" onClick={() => void run('retry', () => window.api.ingest.retry(job.id), true)}>
+                    <button className="link" onClick={() => void mutate('retry', () => window.api.ingest.retry(job.id))}>
                       retry
                     </button>
                   )}
-                  <button className="link" onClick={() => void run('dismiss', () => window.api.ingest.dismiss(job.id), true)}>
+                  <button className="link" onClick={() => void mutate('dismiss', () => window.api.ingest.dismiss(job.id))}>
                     dismiss
                   </button>
                 </li>

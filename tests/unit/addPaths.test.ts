@@ -1,4 +1,3 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { addPaths } from '../../src/main/ingest/addPaths.js'
@@ -37,8 +36,7 @@ describe('addPaths', () => {
     const queue = new Queue(fixture.db)
     const folder = join(fixture.dir, 'album')
     queue.recordFailures([{ path: folder, reason: 'folder-unreadable' }])
-    mkdirSync(folder)
-    writeFileSync(join(folder, 'p.jpg'), Buffer.alloc(4))
+    seedFile(folder, 'p.jpg')
 
     await addPaths(queue, [folder])
     expect(failedErrors(queue)).not.toContain('folder-unreadable')
@@ -47,8 +45,7 @@ describe('addPaths', () => {
   it('records the walk-count guard as a durable failure', async () => {
     const queue = new Queue(fixture.db)
     const folder = join(fixture.dir, 'many')
-    mkdirSync(folder)
-    for (let i = 0; i < 3; i++) writeFileSync(join(folder, `f${i}.jpg`), Buffer.alloc(4))
+    for (let i = 0; i < 3; i++) seedFile(folder, `f${i}.jpg`)
 
     // The production limits are constants; the guard row is what matters, so
     // stage it through recordFailures the way addPaths does.

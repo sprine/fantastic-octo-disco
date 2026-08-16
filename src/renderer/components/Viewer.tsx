@@ -22,7 +22,7 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
   const [ceiling, setCeiling] = useState<number | null>(null)
   // Double-click is fire-and-forget from the stage, so its failure needs a
   // home of its own: swallowed, a moved original reads as a dead gesture.
-  const [notice, , runAction, clearNotice] = useAttempt(onChanged)
+  const { failed: notice, run: runAction, clear: clearNotice } = useAttempt(onChanged)
   const stageRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 

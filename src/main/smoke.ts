@@ -57,8 +57,10 @@ export async function runSmoke(ctx: {
     checks.malformedStatus = (await net.fetch('img://image/nope/thumb')).status
 
     // A seeded derivative must be served. Seeded through the prepared queries,
-    // not fresh SQL, so a column rename breaks here at compile time rather than
-    // at boot — the same rule the reads below follow.
+    // not fresh SQL — the same rule the reads below follow. The positionals are
+    // untyped, so this tracks markReady's SET list by position: bytes, width,
+    // height, format, captured_at, mtime_ms, thumb_path, display_path,
+    // metadata_json, checked_at, id.
     const derivative = join(dataDir(), 'thumbnails', 'smoke.bin')
     await writeFile(derivative, 'smoke-derivative')
     const seeded = ctx.q.insertPendingImage.get(

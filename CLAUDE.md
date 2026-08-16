@@ -36,7 +36,7 @@ Node 22+. `node:sqlite` needs `NODE_OPTIONS=--experimental-sqlite` under plain n
 
 1. **Protocol cache**: anything that writes `thumb_path`/`display_path` must call
    `invalidate(id)` (see `protocol.ts`), or that image 404s forever. Current writers:
-   pool event handler in `index.ts`, `library:remove` handler.
+   pool event handler in `index.ts`, `removeImages` in `library.ts`.
 2. **Commit order**: derivative files land on disk (scratch name → `rename`) *before* the
    row flips to `ready` (`processJob.ts`). Never reverse it — a crash must never produce a
    ready row with no file behind it.

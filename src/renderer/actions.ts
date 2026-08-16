@@ -78,5 +78,5 @@ export function useAttempt(onChanged: () => void, onSuccess?: () => void) {
     [run]
   )
 
-  return [failed, attempt, run, clear] as const
+  return { failed, attempt, run, clear }
 }

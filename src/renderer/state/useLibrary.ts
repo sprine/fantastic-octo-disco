@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Failures, ImageRow, QueueCounts } from '../../shared/types.js'
 import { zeroCounts } from '../../shared/types.js'
-
-// ImageRow is flat, so a field-by-field compare is a complete equality check.
-const sameRow = (a: ImageRow, b: ImageRow): boolean => {
-  for (const key of Object.keys(b) as (keyof ImageRow)[]) if (a[key] !== b[key]) return false
-  return true
-}
+import { shallowEqual } from './shallowEqual.js'
 
 // Each refresh is three IPC round trips including a full page of rows, and
 // capture-date order scatters new images into the middle rather than on top,
@@ -34,7 +29,7 @@ export function useLibrary() {
       const previous = new Map(current.map((row) => [row.id, row]))
       const next = rows.map((row) => {
         const old = previous.get(row.id)
-        return old && sameRow(old, row) ? old : row
+        return old && shallowEqual(old, row) ? old : row
       })
       const unchanged = next.length === current.length && next.every((row, i) => row === current[i])
       return unchanged ? current : next

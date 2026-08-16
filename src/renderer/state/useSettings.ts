@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_SETTINGS, type UiSettings } from '../../shared/settings.js'
+import { shallowEqual } from './shallowEqual.js'
 
 /**
  * Column count and drawer state, persisted. The first paint uses defaults and
@@ -30,8 +31,7 @@ export function useSettings(): {
     const next = { ...current.current, ...patch(current.current) }
     // A divider drag proposes the same column count on every mouse move
     // between snap points, and each write is a flush to disk.
-    const keys = Object.keys(next) as (keyof UiSettings)[]
-    if (keys.every((key) => next[key] === current.current[key])) return
+    if (shallowEqual(next, current.current)) return
 
     touched.current = true
     current.current = next

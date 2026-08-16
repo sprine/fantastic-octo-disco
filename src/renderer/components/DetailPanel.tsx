@@ -111,7 +111,7 @@ function compact(pairs: Field[]): { label: string; value: string }[] {
 }
 
 export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: () => void }) {
-  const [failed, attempt] = useAttempt(onChanged)
+  const { failed, attempt } = useAttempt(onChanged)
 
   return (
     <div className="detail">

@@ -16,7 +16,7 @@ export function TileMenu({ target, onClose, onChanged }: Props) {
   const [at, setAt] = useState({ x: target.x, y: target.y })
   // Held open rather than closed on failure: a menu that vanishes having done
   // nothing is indistinguishable from one that worked.
-  const [failed, attempt] = useAttempt(onChanged, onClose)
+  const { failed, attempt } = useAttempt(onChanged, onClose)
 
   // Before paint, from the menu's own measured size: the labels are prose and
   // a font the window does not have changes them.
