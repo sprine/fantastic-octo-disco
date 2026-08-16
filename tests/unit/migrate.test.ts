@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { migrate } from '../../src/main/db/migrate.js'
-import { userVersion } from '../../src/main/db/queries.js'
+import { CLEAR_REJECTION_SQL, LIST_READY_SQL, userVersion } from '../../src/main/db/queries.js'
 import { MIGRATIONS } from '../../src/main/db/migrations.js'
 import { tempDatabase } from '../helpers.js'
 
@@ -53,12 +53,12 @@ describe('migrate', () => {
   })
 
   // The DELETE that clears a stale rejection runs on every successful insert,
-  // against a table that is the library's whole import history.
+  // against a table that is the library's whole import history. Planned over
+  // the shipped text, not a hand-copy that drifts from queries.ts.
   it('indexes the column the rejection sweep looks up', () => {
     migrate(fixture.db)
     const plan = fixture.db
-      .prepare(`EXPLAIN QUERY PLAN DELETE FROM ingestion_log
-                 WHERE canonical_path = ? AND image_id IS NULL`)
+      .prepare(`EXPLAIN QUERY PLAN ${CLEAR_REJECTION_SQL}`)
       .all() as { detail: string }[]
     expect(plan.map((step) => step.detail).join(' ')).not.toMatch(/SCAN/)
   })
@@ -69,9 +69,7 @@ describe('migrate', () => {
   it('serves the library listing without sorting it by hand', () => {
     migrate(fixture.db)
     const plan = fixture.db
-      .prepare(`EXPLAIN QUERY PLAN
-                SELECT * FROM images WHERE status = 'ready'
-                 ORDER BY captured_at DESC, id DESC LIMIT 500 OFFSET 0`)
+      .prepare(`EXPLAIN QUERY PLAN ${LIST_READY_SQL}`)
       .all() as { detail: string }[]
     const detail = plan.map((step) => step.detail).join(' ')
 

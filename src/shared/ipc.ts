@@ -2,6 +2,14 @@ import type { UiSettings } from './settings.js'
 import type { DeleteMode, EnqueueResult, Failures, ImageRow, QueueCounts } from './types.js'
 
 /**
+ * The push payload on `ingestEvent` — declared here, not in pool.ts, so the one
+ * push channel sits under the same drift-is-a-compile-error guarantee as the
+ * invoked ones. The abandon sweep sends a synthetic
+ * `{ type: 'failed', jobId: -1, imageId: null }` purely as a refresh hint.
+ */
+export type IngestEvent = { type: 'done' | 'failed'; jobId: number; imageId: number | null }
+
+/**
  * The contract both sides import, so preload and main drifting apart is a type
  * error rather than a runtime one. Namespaced from the start: a flat surface
  * becomes a god object by v2.
@@ -30,7 +38,7 @@ export type Api = {
     dismissAll(): Promise<number>
     cancelPending(): Promise<number>
     /** Returns an unsubscribe function. */
-    onEvent(listener: (event: { type: 'done' | 'failed'; jobId: number }) => void): () => void
+    onEvent(listener: (event: IngestEvent) => void): () => void
   }
   shell: {
     /** The only route to a TIF at full fidelity. */

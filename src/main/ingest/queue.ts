@@ -10,7 +10,8 @@ import {
   type Failures,
   type JobRow,
   type JobState,
-  type QueueCounts
+  type QueueCounts,
+  zeroCounts
 } from '../../shared/types.js'
 
 /** A row claimed longer than this is presumed abandoned by a dead worker. */
@@ -23,7 +24,7 @@ export const MAX_ATTEMPTS = 5
  * Bounded so one import neither holds the write lock for its whole duration
  * nor takes it twenty thousand times. Workers get gaps to claim in either way.
  */
-export const ENQUEUE_CHUNK = 500
+const ENQUEUE_CHUNK = 500
 
 /**
  * The queue is a table, not a memory structure, so a forced quit loses
@@ -314,7 +315,7 @@ export class Queue {
 
   /** The current run only; failures() is the durable list, this is the progress strip. */
   counts(): QueueCounts {
-    const base: QueueCounts = { pending: 0, claimed: 0, done: 0, failed: 0 }
+    const base = zeroCounts()
     for (const row of this.q.counts.all(this.session) as { state: JobState; n: number }[]) {
       base[row.state] = row.n
     }

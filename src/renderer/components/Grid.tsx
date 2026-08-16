@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { Fragment, useCallback, useState } from 'react'
 import type { ImageRow } from '../../shared/types.js'
 import type { Grouped } from '../groups.js'
 import { GUTTER, ROW_GAP, TILE } from '../layout.js'
@@ -51,12 +51,12 @@ export function Grid({ images, grouped, columns, selectedIds, focusedId, onSelec
       {grouped === null
         ? images.map(tile)
         : grouped.map((group) => (
-            <div key={group.value} className="grid-section" style={{ display: 'contents' }}>
+            <Fragment key={group.value}>
               <div className="group-label">
                 {group.value} <em>{group.images.length}</em>
               </div>
               {group.images.map(tile)}
-            </div>
+            </Fragment>
           ))}
 
       {menu && (

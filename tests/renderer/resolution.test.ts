@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { displayCeiling, upscaleCeiling } from '../../src/renderer/resolution.js'
 import { DISPLAY_DERIVATIVE_PX, type ImageRow } from '../../src/shared/types.js'
+import { imageRow } from './helpers.js'
 
-const image = (width: number | null, height: number | null): ImageRow =>
-  ({ width, height }) as ImageRow
+const image = (width: number | null, height: number | null): ImageRow => imageRow({ width, height })
 
 describe('displayCeiling', () => {
   it('is silent when the original fits inside the derivative', () => {

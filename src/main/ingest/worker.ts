@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
 import { errorMessage } from '../../shared/errors.js'
 import { createQueries } from '../db/queries.js'
@@ -22,8 +23,6 @@ let running = true
 parentPort?.on('message', (message: { type: string }) => {
   if (message.type === 'stop') running = false
 })
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Tells the pool this thread reached the job loop, so a later death is a job
 // killing a worker rather than a worker that cannot start — the two need

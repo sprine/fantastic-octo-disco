@@ -1,16 +1,12 @@
-import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { enumerateImages, DEFAULT_LIMITS } from '../../src/main/ingest/enumerate.js'
-import { tempDir } from '../helpers.js'
+import { seedFile, tempDir } from '../helpers.js'
 
 const root = tempDir('enumerate')
 
-const file = (relative: string, bytes = 10): string => {
-  const path = join(root.path, relative)
-  writeFileSync(path, Buffer.alloc(bytes))
-  return path
-}
+const file = (relative: string, bytes = 10): string => seedFile(root.path, relative, bytes)
 const dir = (relative: string): string => {
   const path = join(root.path, relative)
   mkdirSync(path, { recursive: true })

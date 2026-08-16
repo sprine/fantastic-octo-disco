@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FailureReason, Failures, QueueCounts } from '../../shared/types.js'
 import { MAX_IMPORT_BYTES, WALK_MAX_DEPTH, WALK_MAX_FILES } from '../../shared/types.js'
-import { errorMessage } from '../../shared/errors.js'
+import { useAttempt } from '../actions.js'
 import { basename, megabytes } from '../format.js'
 
 /** Main emits a code; the wording and the units are decided here. */
@@ -32,31 +32,14 @@ type Props = { counts: QueueCounts; failures: Failures; onChanged: () => void }
  */
 export function ImportFooter({ counts, failures, onChanged }: Props) {
   const [showFailures, setShowFailures] = useState(false)
-  const [failed, setFailed] = useState<string | null>(null)
+  // Every ingest mutation reports its failure and is followed by a refresh;
+  // routing each button through `run` states both rules once.
+  const [failed, , run] = useAttempt(onChanged)
   const outstanding = counts.pending + counts.claimed
   // A failure is settled work: leaving it out would stall the bar short of its
   // own total for the rest of the run.
   const settled = counts.done + counts.failed
   const total = outstanding + settled
-
-  // Every ingest mutation is followed by a refresh; stating the rule once means
-  // a new button cannot quietly forget it.
-  const then = (run: () => Promise<unknown>, also?: () => void) => async () => {
-    await run()
-    also?.()
-    onChanged()
-  }
-
-  const pick = async () => {
-    setFailed(null)
-    try {
-      await window.api.ingest.pickAndAdd()
-    } catch (error) {
-      setFailed(errorMessage(error))
-    } finally {
-      onChanged()
-    }
-  }
 
   return (
     <footer className="import-footer">
@@ -66,17 +49,17 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
           <span>
             {settled} / {total}
           </span>
-          <button className="link" onClick={then(() => window.api.ingest.cancelPending())}>
+          <button className="link" onClick={() => void run('cancel', () => window.api.ingest.cancelPending(), true)}>
             cancel
           </button>
         </div>
       ) : (
-        <button className="import" onClick={pick}>
+        <button className="import" onClick={() => void run('import', () => window.api.ingest.pickAndAdd(), true)}>
           + Import images
         </button>
       )}
 
-      {failed && <p className="notice">Import failed: {failed}</p>}
+      {failed && <p className="notice">{failed}</p>}
 
       {/* Every failure comes from ingestion_log: what a walk rejected sits
           beside what a decode lost, and both survive a reload. */}
@@ -89,7 +72,9 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
           </button>
           <button
             className="link dismiss-all"
-            onClick={then(() => window.api.ingest.dismissAll(), () => setShowFailures(false))}
+            onClick={async () => {
+              if (await run('dismiss', () => window.api.ingest.dismissAll(), true)) setShowFailures(false)
+            }}
           >
             dismiss all
           </button>
@@ -102,11 +87,11 @@ export function ImportFooter({ counts, failures, onChanged }: Props) {
                   {/* A rejected file was never enqueued: there is no job to
                       run again, so retry would only fail a second way. */}
                   {job.image_id !== null && (
-                    <button className="link" onClick={then(() => window.api.ingest.retry(job.id))}>
+                    <button className="link" onClick={() => void run('retry', () => window.api.ingest.retry(job.id), true)}>
                       retry
                     </button>
                   )}
-                  <button className="link" onClick={then(() => window.api.ingest.dismiss(job.id))}>
+                  <button className="link" onClick={() => void run('dismiss', () => window.api.ingest.dismiss(job.id), true)}>
                     dismiss
                   </button>
                 </li>

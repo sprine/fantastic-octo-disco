@@ -1,20 +1,19 @@
 import { availableParallelism } from 'node:os'
 import { Worker } from 'node:worker_threads'
+import type { IngestEvent } from '../../shared/ipc.js'
 
 /**
  * Two workers, not eight: decode is memory-heavy (peak scales with decoded
  * pixels, not file size), so more threads mostly buys thrash.
  */
-export const DEFAULT_POOL_SIZE = Math.max(1, Math.min(2, availableParallelism() - 1))
+const DEFAULT_POOL_SIZE = Math.max(1, Math.min(2, availableParallelism() - 1))
 
 const RESPAWN_BACKOFF_MS = 500
 /** Long enough that a worker which cannot start costs nothing to keep retrying. */
 const MAX_BACKOFF_MS = 30_000
 
-export type PoolEvent = { type: 'done' | 'failed'; jobId: number; imageId: number | null }
-
-/** Sent by the worker once it reaches the job loop. Never reaches the renderer. */
-type WorkerMessage = PoolEvent | { type: 'started' }
+/** Sent by the worker once it reaches the job loop. `started` never reaches the renderer. */
+type WorkerMessage = IngestEvent | { type: 'started' }
 
 export class WorkerPool {
   private workers: Worker[] = []
@@ -22,7 +21,7 @@ export class WorkerPool {
   constructor(
     private readonly dbFile: string,
     private readonly derivativesDir: string,
-    private readonly onEvent: (event: PoolEvent) => void,
+    private readonly onEvent: (event: IngestEvent) => void,
     private readonly size = DEFAULT_POOL_SIZE,
     /** Overridden only by tests that need the built thread, not the source. */
     private readonly entry = new URL('./worker.js', import.meta.url)

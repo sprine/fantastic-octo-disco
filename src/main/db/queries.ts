@@ -13,7 +13,20 @@ const SELF_CLEARING = CLEARS_ON_IMPORT.map((reason) => `'${reason}'`).join(',')
  * Work that outlived a cancel. Not a run: no progress strip counts it, but the
  * rows still finish. Negative so it can never collide with a real session.
  */
-export const CANCELLED_SESSION = -1
+const CANCELLED_SESSION = -1
+
+/**
+ * Exported for the query-plan pins in migrate.test.ts: the plan assertions must
+ * run over the shipped text, or they pin a hand-copy that silently drifts.
+ */
+export const LIST_READY_SQL = `
+      SELECT * FROM images WHERE status = 'ready'
+      ORDER BY captured_at DESC, id DESC LIMIT ?`
+
+export const CLEAR_REJECTION_SQL = `
+      DELETE FROM ingestion_log
+       WHERE canonical_path = ? AND image_id IS NULL
+         AND error IN (${SELF_CLEARING})`
 
 /** The only place SQL text lives outside migrations. Prepared once per connection. */
 export function createQueries(db: DatabaseSync) {
@@ -35,9 +48,7 @@ export function createQueries(db: DatabaseSync) {
     // scroll, so it reads two columns rather than materialising all of them.
     getDerivatives: db.prepare('SELECT thumb_path, display_path FROM images WHERE id = ?'),
 
-    listReady: db.prepare(`
-      SELECT * FROM images WHERE status = 'ready'
-      ORDER BY captured_at DESC, id DESC LIMIT ? OFFSET ?`),
+    listReady: db.prepare(LIST_READY_SQL),
 
     markReady: db.prepare(`
       UPDATE images SET status = 'ready', bytes = ?, width = ?, height = ?, format = ?,
@@ -175,10 +186,7 @@ export function createQueries(db: DatabaseSync) {
     // and left standing it says the file did not arrive after it has. Scoped to
     // file-content complaints: a walk-count row names the file the walk stopped
     // at, and importing that one file must not erase a truncation notice.
-    clearRejection: db.prepare(`
-      DELETE FROM ingestion_log
-       WHERE canonical_path = ? AND image_id IS NULL
-         AND error IN (${SELF_CLEARING})`),
+    clearRejection: db.prepare(CLEAR_REJECTION_SQL),
 
     // A folder that reads is no longer unreadable; a later walk proves exactly that.
     clearFolderComplaint: db.prepare(`

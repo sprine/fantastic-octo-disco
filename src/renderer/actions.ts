@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { errorMessage } from '../shared/errors.js'
 
 export type ImageAction = {
@@ -48,17 +48,35 @@ export const IMAGE_ACTIONS: ImageAction[] = [
  */
 export function useAttempt(onChanged: () => void, onSuccess?: () => void) {
   const [failed, setFailed] = useState<string | null>(null)
+  const clear = useCallback(() => setFailed(null), [])
 
-  const attempt = async (action: ImageAction, id: number) => {
-    setFailed(null)
-    try {
-      await action.run(id)
-    } catch (error) {
-      return setFailed(`Could not ${action.verb}: ${errorMessage(error)}`)
-    }
-    onSuccess?.()
-    if (action.changes) onChanged()
-  }
+  /**
+   * The general form: any command, with the verb that completes "Could not …".
+   * `changes` means a refresh must follow — even after a failure, which may
+   * have partly landed before it threw. Resolves to whether the command did.
+   */
+  const run = useCallback(
+    async (verb: string, command: () => Promise<unknown>, changes = false): Promise<boolean> => {
+      setFailed(null)
+      let ok = true
+      try {
+        await command()
+      } catch (error) {
+        ok = false
+        setFailed(`Could not ${verb}: ${errorMessage(error)}`)
+      } finally {
+        if (changes) onChanged()
+      }
+      if (ok) onSuccess?.()
+      return ok
+    },
+    [onChanged, onSuccess]
+  )
 
-  return [failed, attempt] as const
+  const attempt = useCallback(
+    (action: ImageAction, id: number) => run(action.verb, () => action.run(id), action.changes),
+    [run]
+  )
+
+  return [failed, attempt, run, clear] as const
 }

@@ -23,14 +23,9 @@ export function registerIpc({ db, q, queue, settings, invalidate }: Context): vo
 
   ipcMain.handle(CHANNELS.libraryCheck, (_event, id: number) => checkDrift(q, id))
 
-  ipcMain.handle(CHANNELS.libraryRemove, async (_event, ids: number[], mode: DeleteMode) => {
-    // Invalidate even on a partial failure: some rows may already be gone.
-    try {
-      return await removeImages(db, q, ids, mode)
-    } finally {
-      for (const id of ids) invalidate(id)
-    }
-  })
+  ipcMain.handle(CHANNELS.libraryRemove, (_event, ids: number[], mode: DeleteMode) =>
+    removeImages(db, q, invalidate, ids, mode)
+  )
 
   ipcMain.handle(CHANNELS.ingestPick, async (): Promise<EnqueueResult | null> => {
     const picked = await dialog.showOpenDialog({

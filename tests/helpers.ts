@@ -1,10 +1,17 @@
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach } from 'vitest'
 import { migrate } from '../src/main/db/migrate.js'
 import { openDatabase } from '../src/main/db/open.js'
+/** `bytes` dummy bytes at dir/relative, parents created; resolves to the path. */
+export function seedFile(dir: string, relative: string, bytes = 10): string {
+  const path = join(dir, relative)
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, Buffer.alloc(bytes))
+  return path
+}
 
 /** One temp directory per test, removed after. */
 export function tempDir(prefix: string): { readonly path: string } {

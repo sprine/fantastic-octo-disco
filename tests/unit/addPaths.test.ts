@@ -3,15 +3,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { addPaths } from '../../src/main/ingest/addPaths.js'
 import { Queue } from '../../src/main/ingest/queue.js'
-import { tempDatabase } from '../helpers.js'
+import { seedFile, tempDatabase } from '../helpers.js'
 
 const fixture = tempDatabase('addPaths')
 
-const seed = (name: string, bytes = 10): string => {
-  const path = join(fixture.dir, name)
-  writeFileSync(path, Buffer.alloc(bytes))
-  return path
-}
+const seed = (name: string, bytes = 10): string => seedFile(fixture.dir, name, bytes)
+
+/** Through the production API under test, not a hand-written probe query. */
+const failedErrors = (queue: Queue): (string | null)[] =>
+  queue.failures().items.map((job) => job.error)
 
 describe('addPaths', () => {
   it('tallies enqueued, duplicates and rejected for one drop', async () => {
@@ -41,12 +41,7 @@ describe('addPaths', () => {
     writeFileSync(join(folder, 'p.jpg'), Buffer.alloc(4))
 
     await addPaths(queue, [folder])
-    const errors = (
-      fixture.db.prepare(`SELECT error FROM ingestion_log WHERE state='failed'`).all() as {
-        error: string
-      }[]
-    ).map((row) => row.error)
-    expect(errors).not.toContain('folder-unreadable')
+    expect(failedErrors(queue)).not.toContain('folder-unreadable')
   })
 
   it('records the walk-count guard as a durable failure', async () => {
@@ -58,11 +53,6 @@ describe('addPaths', () => {
     // The production limits are constants; the guard row is what matters, so
     // stage it through recordFailures the way addPaths does.
     queue.recordFailures([{ path: join(folder, 'f2.jpg'), reason: 'walk-count' }])
-    const errors = (
-      fixture.db.prepare(`SELECT error FROM ingestion_log WHERE state='failed'`).all() as {
-        error: string
-      }[]
-    ).map((row) => row.error)
-    expect(errors).toContain('walk-count')
+    expect(failedErrors(queue)).toContain('walk-count')
   })
 })

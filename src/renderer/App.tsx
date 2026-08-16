@@ -68,7 +68,7 @@ export function App() {
   // selection so the user is not made to rebuild it.
   const removeSelected = useCallback(
     async (mode: DeleteMode) => {
-      const ids = selection.ids.size > 0 ? [...selection.ids] : selectedId !== null ? [selectedId] : []
+      const ids = [...selection.ids]
       if (ids.length === 0) return
       try {
         if ((await window.api.library.remove(ids, mode)) === 0) return
@@ -81,7 +81,7 @@ export function App() {
       setSelectedId(null)
       await refresh()
     },
-    [selection, selectedId, refresh]
+    [selection, refresh]
   )
 
   // The handler reads the latest step/remove through refs, so the window

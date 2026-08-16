@@ -9,7 +9,7 @@ import { LIBRARY_PAGE_SIZE, type DeleteMode, type DriftState, type ImageRow } fr
 
 /** The page size is policy, so it lives here rather than in an IPC handler. */
 export const listLibrary = (q: Queries): ImageRow[] =>
-  q.listReady.all(LIBRARY_PAGE_SIZE, 0) as ImageRow[]
+  q.listReady.all(LIBRARY_PAGE_SIZE) as ImageRow[]
 
 /**
  * Lazy drift detection: one stat, mark, keep the row. A missing file is never
@@ -20,7 +20,7 @@ export const listLibrary = (q: Queries): ImageRow[] =>
  * this once per keypress); when a check does happen it is recorded, so
  * checked_at keeps its meaning.
  */
-export const DRIFT_RECHECK_MS = 30_000
+const DRIFT_RECHECK_MS = 30_000
 
 export async function checkDrift(q: Queries, id: number, now = Date.now()): Promise<ImageRow | null> {
   const row = getImageRow(q, id)
@@ -41,6 +41,13 @@ export async function checkDrift(q: Queries, id: number, now = Date.now()): Prom
   return { ...row, drift, mtime_ms: mtime, checked_at: now }
 }
 
+/** Both shell actions answer a vanished row the same way: one wording, one place. */
+function requireImageRow(q: Queries, id: number): ImageRow {
+  const row = getImageRow(q, id)
+  if (!row) throw new Error('This image is no longer in the library')
+  return row
+}
+
 /**
  * The only route to a TIF at full fidelity, so it is not a convenience — and
  * a failure here must be loud. shell.openPath reports problems as a returned
@@ -48,8 +55,7 @@ export async function checkDrift(q: Queries, id: number, now = Date.now()): Prom
  * that does nothing.
  */
 export async function openOriginal(q: Queries, id: number): Promise<void> {
-  const row = getImageRow(q, id)
-  if (!row) throw new Error('This image is no longer in the library')
+  const row = requireImageRow(q, id)
   const problem = await shell.openPath(row.source_path)
   if (problem) throw new Error(problem)
 }
@@ -60,8 +66,7 @@ export async function openOriginal(q: Queries, id: number): Promise<void> {
  * turns a moved file into an answer instead of a dead menu item.
  */
 export function showInFolder(q: Queries, id: number): void {
-  const row = getImageRow(q, id)
-  if (!row) throw new Error('This image is no longer in the library')
+  const row = requireImageRow(q, id)
   if (!existsSync(row.source_path)) throw new Error(`No file at ${row.source_path}`)
   shell.showItemInFolder(row.source_path)
 }
@@ -85,6 +90,7 @@ const CONFIRM_DETAIL_PATHS = 8
 export async function removeImages(
   db: DatabaseSync,
   q: Queries,
+  invalidate: (id: number) => void,
   ids: number[],
   mode: DeleteMode,
   now = Date.now()
@@ -116,26 +122,35 @@ export async function removeImages(
 
   const failed: string[] = []
   let removed = 0
-  for (const row of rows) {
-    if (mode === 'original') {
-      try {
-        await shell.trashItem(row.source_path)
-      } catch (error) {
-        q.logDeletion.run(row.id, row.source_path, mode, now, errorMessage(error))
-        failed.push(`${row.source_path}: ${errorMessage(error)}`)
-        continue
+  try {
+    for (const row of rows) {
+      if (mode === 'original') {
+        try {
+          await shell.trashItem(row.source_path)
+        } catch (error) {
+          q.logDeletion.run(row.id, row.source_path, mode, now, errorMessage(error))
+          failed.push(`${row.source_path}: ${errorMessage(error)}`)
+          continue
+        }
       }
-    }
 
-    for (const derivative of [row.thumb_path, row.display_path]) {
-      if (derivative) await rm(derivative, { force: true })
-    }
+      await Promise.all(
+        [row.thumb_path, row.display_path].map((derivative) =>
+          derivative ? rm(derivative, { force: true }) : undefined
+        )
+      )
 
-    withTransaction(db, () => {
-      q.deleteImage.run(row.id) // cascades to ingestion_log
-      q.logDeletion.run(row.id, row.source_path, mode, now, null)
-    })
-    removed += 1
+      withTransaction(db, () => {
+        q.deleteImage.run(row.id) // cascades to ingestion_log
+        q.logDeletion.run(row.id, row.source_path, mode, now, null)
+      })
+      removed += 1
+    }
+  } finally {
+    // Deletion carries its own protocol-cache coherence (invariant 1): a future
+    // caller that is not the IPC handler must not be able to strand 404s. Even
+    // on a partial failure — some rows may already be gone.
+    for (const id of ids) invalidate(id)
   }
 
   if (failed.length > 0) {

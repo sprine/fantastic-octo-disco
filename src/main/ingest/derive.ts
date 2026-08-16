@@ -44,7 +44,7 @@ export type Derived = {
  * derivatives unconditionally, and content-addressed sharing without a
  * refcount would let dropping one row blank an unrelated survivor.
  */
-export const derivativePath = (dir: string, imageId: number, variant: DerivativeVariant): string =>
+const derivativePath = (dir: string, imageId: number, variant: DerivativeVariant): string =>
   join(dir, `${imageId}-${variant}.webp`)
 
 /**

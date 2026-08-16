@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ImageRow } from '../../shared/types.js'
-import { errorMessage } from '../../shared/errors.js'
+import { useAttempt } from '../actions.js'
 import { imgUrl } from '../../shared/imgUrl.js'
 import { upscaleCeiling } from '../resolution.js'
 import { clampPan, FIT, wheelFactor, wheelPixels, zoomAt, ZOOM_STEP, type View } from '../zoom.js'
@@ -20,7 +20,9 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
   const [view, setView] = useState<View>(FIT)
   const [broken, setBroken] = useState(false)
   const [ceiling, setCeiling] = useState<number | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  // Double-click is fire-and-forget from the stage, so its failure needs a
+  // home of its own: swallowed, a moved original reads as a dead gesture.
+  const [notice, , runAction, clearNotice] = useAttempt(onChanged)
   const stageRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
@@ -29,16 +31,14 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
   useEffect(() => {
     setView(FIT)
     setBroken(false)
-    setNotice(null)
+    clearNotice()
     if (image) void window.api.library.check(image.id)
-  }, [image?.id])
+  }, [image?.id, clearNotice])
 
-  // Double-click is fire-and-forget from the stage, so its failure needs a
-  // home of its own: swallowed, a moved original reads as a dead gesture.
-  const openOriginal = useCallback((id: number) => {
-    setNotice(null)
-    window.api.shell.openOriginal(id).catch((error) => setNotice(errorMessage(error)))
-  }, [])
+  const openOriginal = useCallback(
+    (id: number) => void runAction('open the original', () => window.api.shell.openOriginal(id)),
+    [runAction]
+  )
 
   /**
    * Pan is clamped against the drawn size, so every change asks the DOM how
@@ -207,7 +207,7 @@ export function Viewer({ image, detailOpen, onToggleDetail, onClose, onChanged, 
         <p className="ceiling">Enlarged beyond the stored pixels. Double-click for the original.</p>
       )}
 
-      {notice && <p className="ceiling error">Could not open the original: {notice}</p>}
+      {notice && <p className="ceiling error">{notice}</p>}
 
       {detailOpen && <DetailPanel image={image} onChanged={onChanged} />}
     </main>

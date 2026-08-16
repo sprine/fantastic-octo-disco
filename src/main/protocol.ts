@@ -25,7 +25,7 @@ export function registerImgProtocol(queries: Queries): { invalidate: (id: number
   //
   // The invariant this buys: anything that writes thumb_path or display_path
   // must call invalidate(), or that image serves a permanent 404. Writers
-  // today: the pool event handler and library:remove.
+  // today: the pool event handler and removeImages.
   const cache = new Map<string, string | null>()
 
   protocol.handle('img', async (request) => {

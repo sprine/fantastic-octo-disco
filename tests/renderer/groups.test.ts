@@ -1,16 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyFilters, facets, groupImages, groupValue } from '../../src/renderer/groups.js'
 import type { ImageRow } from '../../src/shared/types.js'
-
-const image = (partial: Partial<ImageRow>): ImageRow =>
-  ({
-    id: 0,
-    source_path: '/photos/dive.jpg',
-    captured_at: Date.UTC(2024, 4, 15),
-    imported_at: Date.UTC(2024, 5, 1),
-    format: 'jpeg',
-    ...partial
-  }) as ImageRow
+import { imageRow as image } from './helpers.js'
 
 // A tiny library spanning two folders, two formats, two capture months.
 const library: ImageRow[] = [

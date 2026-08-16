@@ -2,6 +2,7 @@ import { app, net, type BrowserWindow } from 'electron'
 import { existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import type { DatabaseSync } from 'node:sqlite'
 import sharp from 'sharp'
 import { canonicalisePath } from './canonicalPath.js'
@@ -55,15 +56,17 @@ export async function runSmoke(ctx: {
     checks.unknownIdStatus = (await net.fetch(imgUrl(999999, 'thumb'))).status
     checks.malformedStatus = (await net.fetch('img://image/nope/thumb')).status
 
-    // A seeded derivative must be served.
+    // A seeded derivative must be served. Seeded through the prepared queries,
+    // not fresh SQL, so a column rename breaks here at compile time rather than
+    // at boot — the same rule the reads below follow.
     const derivative = join(dataDir(), 'thumbnails', 'smoke.bin')
     await writeFile(derivative, 'smoke-derivative')
-    const seeded = ctx.db
-      .prepare(
-        `INSERT INTO images (canonical_path, source_path, status, imported_at, thumb_path)
-         VALUES (?, ?, 'ready', ?, ?) RETURNING id`
-      )
-      .get(canonicalisePath(derivative), derivative, Date.now(), derivative) as { id: number }
+    const seeded = ctx.q.insertPendingImage.get(
+      canonicalisePath(derivative),
+      derivative,
+      Date.now()
+    ) as { id: number }
+    ctx.q.markReady.run(null, null, null, null, null, null, derivative, null, null, null, seeded.id)
     const served = await net.fetch(imgUrl(seeded.id, 'thumb'))
     checks.seededStatus = served.status
     checks.seededBody = await served.text()
@@ -112,7 +115,7 @@ async function waitFor(predicate: () => boolean, timeoutMs = 15_000): Promise<bo
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (predicate()) return true
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await sleep(100)
   }
   return false
 }

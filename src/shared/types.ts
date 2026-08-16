@@ -131,6 +131,9 @@ export type JobRow = {
 
 export type QueueCounts = Record<JobState, number>
 
+/** Both sides of the IPC boundary start from the same zero; a new JobState lands here once. */
+export const zeroCounts = (): QueueCounts => ({ pending: 0, claimed: 0, done: 0, failed: 0 })
+
 /** The page the renderer draws, and how many exist in total. */
 export type Failures = { items: JobRow[]; total: number }
 
