@@ -92,14 +92,12 @@ button {
 }
 
 .rail-count {
-  font-size: 11px;
   color: var(--muted);
 }
 
 /* ---- group bar ------------------------------------------------------- */
 .group-bar {
   padding: 0 16px 4px;
-  font-size: 11px;
   color: var(--muted);
 }
 
@@ -148,9 +146,7 @@ button {
 }
 
 .chip {
-  border-radius: 999px;
   background: var(--faint);
-  padding: 1px 8px !important;
 }
 
 .chip em {
@@ -159,8 +155,10 @@ button {
 }
 
 .chip.active {
-  background: var(--ink);
-  color: #fff !important;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* ---- grid ------------------------------------------------------------ */
@@ -180,9 +178,10 @@ button {
    closer than the grid's own row gap would. */
 .group-label {
   grid-column: 1 / -1;
-  font-size: 11px;
   color: var(--muted);
   margin-bottom: -14px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .group-label em {
