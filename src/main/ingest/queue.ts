@@ -79,9 +79,27 @@ export class Queue {
   }
 
   /**
+   * The pacing policy for every batch writer, held once: bounded chunks so the
+   * write lock is taken neither for a whole import nor twenty thousand times,
+   * a yield between chunks so the main thread stays live, and a cancel check
+   * per chunk — yielding is what makes a batch interruptible, so a generation
+   * sampled before a long walk must be honoured here, not in each copy.
+   */
+  private async *chunks<T>(
+    items: readonly T[],
+    generation: number,
+    size = ENQUEUE_CHUNK
+  ): AsyncGenerator<T[]> {
+    for (let start = 0; start < items.length; start += size) {
+      if (this.cancelGeneration !== generation) return
+      yield items.slice(start, start + size)
+      if (start + size < items.length) await setImmediate()
+    }
+  }
+
+  /**
    * The batch form. Canonicalisation (a realpath per file) happens outside the
-   * transaction so the write lock covers only the inserts, and the loop yields
-   * between chunks so an import does not freeze the main thread.
+   * transaction so the write lock covers only the inserts.
    */
   async enqueueAll(
     sourcePaths: string[],
@@ -94,13 +112,8 @@ export class Queue {
     let enqueued = 0
     let duplicates = 0
 
-    for (let start = 0; start < sourcePaths.length; start += size) {
-      // Yielding makes this interruptible, so cancel must be honoured here.
-      if (this.cancelGeneration !== generation) break
-
-      const chunk = sourcePaths
-        .slice(start, start + size)
-        .map((source) => ({ source, canonical: canonicalisePath(source) }))
+    for await (const slice of this.chunks(sourcePaths, generation, size)) {
+      const chunk = slice.map((source) => ({ source, canonical: canonicalisePath(source) }))
       const now = Date.now()
 
       // Counted inside, applied after the commit: a rolled-back chunk must not
@@ -117,8 +130,6 @@ export class Queue {
       enqueued += chunkResult.added
       duplicates += chunkResult.seen
       if (chunkResult.added > 0) this.adopt(session)
-
-      if (start + size < sourcePaths.length) await setImmediate()
     }
     return { enqueued, duplicates }
   }
@@ -143,47 +154,57 @@ export class Queue {
   /**
    * Rejections and walk guards: failures with no job behind them. They belong
    * in the table rather than an IPC reply because the failures list promises
-   * to survive a reload.
+   * to survive a reload. A drop can reject up to the walk cap, so this runs on
+   * the same chunk scaffold as enqueueAll — canonicalisation (a realpath per
+   * entry) outside the transaction, and a cancel mid-batch stops the writes.
    */
-  recordFailures(
+  async recordFailures(
     entries: readonly { path: string; reason: FailureReason }[],
     session = this.beginSession(),
+    generation = this.cancelGeneration,
     now = Date.now()
-  ): number {
+  ): Promise<number> {
     if (entries.length === 0) return 0
 
-    const written = withTransaction(this.db, () => {
-      // A folder and a file inside it can enumerate one path twice; the refresh
-      // collapses them into one row, so the tally must collapse them too.
-      const seen = new Set<string>()
-      let count = 0
-      for (const entry of entries) {
+    // A folder and a file inside it can enumerate one path twice; the refresh
+    // collapses them into one row, so the tally must collapse them too.
+    const seen = new Set<string>()
+    let written = 0
+    for await (const slice of this.chunks(entries, generation)) {
+      const chunk = slice.map((entry) => ({
+        reason: entry.reason,
         // A skipped link is the thing the user must act on; resolving it would
         // store the target and collapse two different links into one complaint.
-        const canonical = canonicalisePath(entry.path, {
+        canonical: canonicalisePath(entry.path, {
           resolveSymlinks: entry.reason !== 'folder-skipped'
-        })
-        // A complaint about the file and one about the drop can both be true
-        // of one path, so the key is the pair. Joined on NUL, the one byte a
-        // path cannot contain — written as an escape, since the literal byte
-        // makes the file binary to grep and to git.
-        const kind = clearsOnImport(entry.reason)
-        const key = `${canonical}\0${kind}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        // Already in the library means it did not fail to arrive — but only
-        // for file-content complaints. A walk-count row often names a file
-        // already imported, and the truncation notice must survive a re-drop.
-        if (kind && this.q.imageIdForPath.get(canonical)) continue
-        if (!this.q.refreshRejection.get(entry.reason, session, now, now, canonical, Number(kind))) {
-          this.q.recordRejection.run(canonical, session, now, now, entry.reason)
-        }
-        count++
-      }
-      return count
-    })
+        }),
+        kind: clearsOnImport(entry.reason)
+      }))
 
-    if (written > 0) this.adopt(session)
+      const count = withTransaction(this.db, () => {
+        let wrote = 0
+        for (const { reason, canonical, kind } of chunk) {
+          // A complaint about the file and one about the drop can both be true
+          // of one path, so the key is the pair. Joined on NUL, the one byte a
+          // path cannot contain — written as an escape, since the literal byte
+          // makes the file binary to grep and to git.
+          const key = `${canonical}\0${kind}`
+          if (seen.has(key)) continue
+          seen.add(key)
+          // Already in the library means it did not fail to arrive — but only
+          // for file-content complaints. A walk-count row often names a file
+          // already imported, and the truncation notice must survive a re-drop.
+          if (kind && this.q.imageIdForPath.get(canonical)) continue
+          if (!this.q.refreshRejection.get(reason, session, now, now, canonical, Number(kind))) {
+            this.q.recordRejection.run(canonical, session, now, now, reason)
+          }
+          wrote++
+        }
+        return wrote
+      })
+      written += count
+      if (count > 0) this.adopt(session)
+    }
     return written
   }
 

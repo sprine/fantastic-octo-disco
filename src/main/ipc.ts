@@ -14,17 +14,16 @@ export type Context = {
   q: Queries
   queue: Queue
   settings: SettingsStore
-  invalidate: (id: number) => void
 }
 
 /** One handler per channel in the shared contract. No SQL, no policy: both live deeper. */
-export function registerIpc({ db, q, queue, settings, invalidate }: Context): void {
+export function registerIpc({ db, q, queue, settings }: Context): void {
   ipcMain.handle(CHANNELS.libraryList, () => listLibrary(q))
 
   ipcMain.handle(CHANNELS.libraryCheck, (_event, id: number) => checkDrift(q, id))
 
   ipcMain.handle(CHANNELS.libraryRemove, (_event, ids: number[], mode: DeleteMode) =>
-    removeImages(db, q, invalidate, ids, mode)
+    removeImages(db, q, ids, mode)
   )
 
   ipcMain.handle(CHANNELS.ingestPick, async (): Promise<EnqueueResult | null> => {

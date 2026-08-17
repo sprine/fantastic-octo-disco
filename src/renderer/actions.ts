@@ -80,3 +80,6 @@ export function useAttempt(onChanged: () => void, onSuccess?: () => void) {
 
   return { failed, attempt, run, clear }
 }
+
+/** `run`'s type, named beside its owner so prop types reference it, not a hand-copy. */
+export type RunAttempt = ReturnType<typeof useAttempt>['run']

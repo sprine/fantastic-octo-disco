@@ -28,7 +28,8 @@ export function useSettings(): {
   // Stable, so the window-level key handler that toggles the drawer can be
   // registered once rather than reattached whenever a setting changes.
   const update = useCallback((patch: (value: UiSettings) => Partial<UiSettings>) => {
-    const next = { ...current.current, ...patch(current.current) }
+    const delta = patch(current.current)
+    const next = { ...current.current, ...delta }
     // A divider drag proposes the same column count on every mouse move
     // between snap points, and each write is a flush to disk.
     if (shallowEqual(next, current.current)) return
@@ -36,9 +37,11 @@ export function useSettings(): {
     touched.current = true
     current.current = next
     setSettings(next)
+    // Only the delta crosses IPC — main merges it over the stored file, so a
+    // write racing the initial load cannot blank a field it never touched.
     // A failed write costs a setting, not the session — but an unhandled
     // rejection would be the only trace it left.
-    window.api.settings.set(next).catch((error) => console.error('[settings] write failed', error))
+    window.api.settings.set(delta).catch((error) => console.error('[settings] write failed', error))
   }, [])
 
   return { settings, update }

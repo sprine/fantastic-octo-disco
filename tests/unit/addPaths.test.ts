@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { addPaths } from '../../src/main/ingest/addPaths.js'
+import { DEFAULT_LIMITS } from '../../src/main/ingest/enumerate.js'
 import { Queue } from '../../src/main/ingest/queue.js'
 import { seedFile, tempDatabase } from '../helpers.js'
 
@@ -35,7 +36,7 @@ describe('addPaths', () => {
   it('clears a standing folder-unreadable complaint once the folder reads', async () => {
     const queue = new Queue(fixture.db)
     const folder = join(fixture.dir, 'album')
-    queue.recordFailures([{ path: folder, reason: 'folder-unreadable' }])
+    await queue.recordFailures([{ path: folder, reason: 'folder-unreadable' }])
     seedFile(folder, 'p.jpg')
 
     await addPaths(queue, [folder])
@@ -47,9 +48,10 @@ describe('addPaths', () => {
     const folder = join(fixture.dir, 'many')
     for (let i = 0; i < 3; i++) seedFile(folder, `f${i}.jpg`)
 
-    // The production limits are constants; the guard row is what matters, so
-    // stage it through recordFailures the way addPaths does.
-    queue.recordFailures([{ path: join(folder, 'f2.jpg'), reason: 'walk-count' }])
+    // Three files against a cap of two: the walk stops early and the guard
+    // must land in the log through addPaths itself, not a staged row.
+    const result = await addPaths(queue, [folder], { ...DEFAULT_LIMITS, maxFiles: 2 })
+    expect(result).toEqual({ enqueued: 2, duplicates: 0, rejected: 1 })
     expect(failedErrors(queue)).toContain('walk-count')
   })
 })

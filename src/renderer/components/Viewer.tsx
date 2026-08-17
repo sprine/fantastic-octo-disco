@@ -34,11 +34,6 @@ export function Viewer({ image, detailOpen, onToggleDetail, onChanged, libraryEm
     if (image) void window.api.library.check(image.id)
   }, [image?.id, clearNotice])
 
-  const openOriginal = useCallback(
-    (id: number) => void runAction('open the original', () => window.api.shell.openOriginal(id)),
-    [runAction]
-  )
-
   /**
    * Pan is clamped against the drawn size, so every change asks the DOM how
    * big the image currently is. Reading rather than storing keeps one source
@@ -152,7 +147,9 @@ export function Viewer({ image, detailOpen, onToggleDetail, onChanged, libraryEm
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         // Past the ceiling, the only route to more detail.
-        onDoubleClick={() => openOriginal(image.id)}
+        onDoubleClick={() =>
+          void runAction('open the original', () => window.api.shell.openOriginal(image.id))
+        }
       >
         {broken ? (
           <p className="stage-placeholder">

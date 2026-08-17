@@ -291,7 +291,9 @@ button {
   margin: 4px 0;
 }
 
-.tile-menu .danger {
+/* Both surfaces of IMAGE_ACTIONS — the tile menu and the detail panel — draw
+   their destructive entries from one rule, the way they draw from one list. */
+.danger {
   color: var(--danger);
 }
 
@@ -485,10 +487,6 @@ button {
 
 .detail-actions button:hover {
   background: var(--faint);
-}
-
-.detail-actions .danger {
-  color: var(--danger);
 }
 
 /* ---- empty state ----------------------------------------------------- */

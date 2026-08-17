@@ -17,8 +17,11 @@ export type IngestEvent = { type: 'done' | 'failed'; jobId: number; imageId: num
 export type Api = {
   library: {
     list(): Promise<ImageRow[]>
-    /** Lazy stat on display; marks drift, never removes the row. */
-    check(id: number): Promise<ImageRow | null>
+    /**
+     * Lazy stat on display; marks drift, never removes the row. Fire-and-forget:
+     * the result reaches the UI through the normal refresh → list path.
+     */
+    check(id: number): Promise<void>
     /**
      * 'original' confirms in main — once per batch — so the guarantee belongs
      * to the operation. Resolves to rows removed; 0 means cancelled.

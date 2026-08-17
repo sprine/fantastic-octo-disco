@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { readMetadata, type ImageMetadata, type ImageRow } from '../../shared/types.js'
 import { IMAGE_ACTIONS, useAttempt } from '../actions.js'
 import { basename, megabytes } from '../format.js'
@@ -110,7 +111,15 @@ function compact(pairs: Field[]): { label: string; value: string }[] {
   return pairs.filter(([, value]) => !!value).map(([label, value]) => ({ label, value: value! }))
 }
 
-export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: () => void }) {
+// Memoised: the viewer re-renders per pointer event while panning, and both
+// props are identity-stable — without this every pan tick re-parses metadata_json.
+export const DetailPanel = memo(function DetailPanel({
+  image,
+  onChanged
+}: {
+  image: ImageRow
+  onChanged: () => void
+}) {
   const { failed, attempt } = useAttempt(onChanged)
 
   return (
@@ -143,4 +152,4 @@ export function DetailPanel({ image, onChanged }: { image: ImageRow; onChanged: 
       </div>
     </div>
   )
-}
+})

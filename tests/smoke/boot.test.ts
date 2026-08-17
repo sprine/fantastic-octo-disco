@@ -5,32 +5,14 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import electronPath from 'electron'
 import { MIGRATIONS } from '../../src/main/db/migrations.js'
+// Type-only, so importing from main pulls no Electron into the test runtime.
+import type { SmokeResult } from '../../src/main/smoke.js'
 
 /**
  * One suite, boot only. It exists to rule out the failure every unit can
  * miss: the application does not start. Interface behaviour does not belong
  * here, or this becomes the slow flaky test that gets skipped.
  */
-type SmokeResult = {
-  windowOpen?: boolean
-  bridgeExposed?: boolean
-  frameRendered?: boolean
-  emptyStateShown?: boolean
-  settingsRoundTrip?: { columns: number; drawerOpen: boolean }
-  tables?: string[]
-  userVersion?: number
-  journalMode?: string
-  unknownIdStatus?: number
-  malformedStatus?: number
-  seededStatus?: number
-  seededBody?: string
-  workerProcessed?: boolean
-  workerDerivatives?: boolean
-  derivedStatus?: number
-  derivedType?: string | null
-  error?: string
-}
-
 let result: SmokeResult
 let userData: string
 
@@ -77,8 +59,10 @@ describe('application boot', () => {
     expect(result.malformedStatus).toBe(400)
   })
 
+  // Only the field the check wrote: pinning the other defaults here would make
+  // a UI-default change break the boot suite with zero wiring change.
   it('stores a setting the renderer sent and reads it back', () => {
-    expect(result.settingsRoundTrip).toEqual({ columns: 4, drawerOpen: true })
+    expect(result.settingsRoundTrip?.columns).toBe(4)
   })
 
   // Also the only place sharp is loaded inside a worker thread under Electron.

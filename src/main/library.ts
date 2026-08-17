@@ -22,10 +22,10 @@ export const listLibrary = (q: Queries): ImageRow[] =>
  */
 const DRIFT_RECHECK_MS = 30_000
 
-export async function checkDrift(q: Queries, id: number, now = Date.now()): Promise<ImageRow | null> {
+export async function checkDrift(q: Queries, id: number, now = Date.now()): Promise<void> {
   const row = getImageRow(q, id)
-  if (!row) return null
-  if (row.checked_at !== null && now - row.checked_at < DRIFT_RECHECK_MS) return row
+  if (!row) return
+  if (row.checked_at !== null && now - row.checked_at < DRIFT_RECHECK_MS) return
 
   let drift: DriftState = 'fresh'
   let mtime = row.mtime_ms
@@ -38,7 +38,6 @@ export async function checkDrift(q: Queries, id: number, now = Date.now()): Prom
   }
 
   q.markDrift.run(drift, now, mtime, id)
-  return { ...row, drift, mtime_ms: mtime, checked_at: now }
 }
 
 /** Both shell actions answer a vanished row the same way: one wording, one place. */
@@ -90,7 +89,6 @@ const CONFIRM_DETAIL_PATHS = 8
 export async function removeImages(
   db: DatabaseSync,
   q: Queries,
-  invalidate: (id: number) => void,
   ids: number[],
   mode: DeleteMode,
   now = Date.now()
@@ -122,35 +120,30 @@ export async function removeImages(
 
   const failed: string[] = []
   let removed = 0
-  try {
-    for (const row of rows) {
-      if (mode === 'original') {
-        try {
-          await shell.trashItem(row.source_path)
-        } catch (error) {
-          q.logDeletion.run(row.id, row.source_path, mode, now, errorMessage(error))
-          failed.push(`${row.source_path}: ${errorMessage(error)}`)
-          continue
-        }
+  for (const row of rows) {
+    if (mode === 'original') {
+      try {
+        await shell.trashItem(row.source_path)
+      } catch (error) {
+        q.logDeletion.run(row.id, row.source_path, mode, now, errorMessage(error))
+        failed.push(`${row.source_path}: ${errorMessage(error)}`)
+        continue
       }
-
-      await Promise.all(
-        [row.thumb_path, row.display_path].map((derivative) =>
-          derivative ? rm(derivative, { force: true }) : undefined
-        )
-      )
-
-      withTransaction(db, () => {
-        q.deleteImage.run(row.id) // cascades to ingestion_log
-        q.logDeletion.run(row.id, row.source_path, mode, now, null)
-      })
-      removed += 1
     }
-  } finally {
-    // Deletion carries its own protocol-cache coherence (invariant 1): a future
-    // caller that is not the IPC handler must not be able to strand 404s. Even
-    // on a partial failure — some rows may already be gone.
-    for (const id of ids) invalidate(id)
+
+    // Removing the derivative files is also what retires any protocol-cache
+    // hit for this id: the next serve fails and the cache evicts itself.
+    await Promise.all(
+      [row.thumb_path, row.display_path].map((derivative) =>
+        derivative ? rm(derivative, { force: true }) : undefined
+      )
+    )
+
+    withTransaction(db, () => {
+      q.deleteImage.run(row.id) // cascades to ingestion_log
+      q.logDeletion.run(row.id, row.source_path, mode, now, null)
+    })
+    removed += 1
   }
 
   if (failed.length > 0) {

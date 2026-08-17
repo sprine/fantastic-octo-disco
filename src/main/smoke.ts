@@ -10,8 +10,32 @@ import { getImageRow, userVersion, type Queries } from './db/queries.js'
 import type { Queue } from './ingest/queue.js'
 import { errorMessage } from '../shared/errors.js'
 import type { ImageRow } from '../shared/types.js'
-import { dataDir } from './paths.js'
+import { thumbnailsDir } from './paths.js'
 import { imgUrl } from '../shared/imgUrl.js'
+
+/**
+ * One shape for both sides of the seam: boot.test.ts imports this type, so a
+ * check added, renamed or retyped on one side is a compile error on the other.
+ */
+export type SmokeResult = {
+  windowOpen?: boolean
+  bridgeExposed?: boolean
+  frameRendered?: boolean
+  emptyStateShown?: boolean
+  settingsRoundTrip?: { columns: number; drawerOpen: boolean }
+  tables?: string[]
+  userVersion?: number
+  journalMode?: string
+  unknownIdStatus?: number
+  malformedStatus?: number
+  seededStatus?: number
+  seededBody?: string
+  workerProcessed?: boolean
+  workerDerivatives?: boolean
+  derivedStatus?: number
+  derivedType?: string | null
+  error?: string
+}
 
 /**
  * Boot verification, not behaviour testing. Runs inside the real application
@@ -25,7 +49,7 @@ export async function runSmoke(ctx: {
   queue: Queue
   window: BrowserWindow
 }): Promise<void> {
-  const checks: Record<string, unknown> = {}
+  const checks: SmokeResult = {}
   try {
     checks.windowOpen = !ctx.window.isDestroyed()
     checks.bridgeExposed = await ctx.window.webContents.executeJavaScript(
@@ -61,7 +85,7 @@ export async function runSmoke(ctx: {
     // untyped, so this tracks markReady's SET list by position: bytes, width,
     // height, format, captured_at, mtime_ms, thumb_path, display_path,
     // metadata_json, checked_at, id.
-    const derivative = join(dataDir(), 'thumbnails', 'smoke.bin')
+    const derivative = join(thumbnailsDir(), 'smoke.bin')
     await writeFile(derivative, 'smoke-derivative')
     const seeded = ctx.q.insertPendingImage.get(
       canonicalisePath(derivative),
@@ -76,7 +100,7 @@ export async function runSmoke(ctx: {
     // A worker must claim from the queue, decode the file and flip the row to
     // ready — the only check that exercises sharp inside a worker thread under
     // Electron rather than plain node.
-    const source = join(dataDir(), 'thumbnails', 'smoke-source.png')
+    const source = join(thumbnailsDir(), 'smoke-source.png')
     await sharp({ create: { width: 24, height: 16, channels: 3, background: '#4477aa' } })
       .png()
       .toFile(source)

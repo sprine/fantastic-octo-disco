@@ -11,6 +11,12 @@ import { tempDatabase } from '../helpers.js'
 
 const fixture = tempDatabase('migrate', { migrated: false })
 
+/** The pin tests plan shipped SQL, never a hand-copy that drifts from queries.ts. */
+const plan = (sql: string): string =>
+  (fixture.db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all() as { detail: string }[])
+    .map((step) => step.detail)
+    .join(' ')
+
 describe('migrate', () => {
   it('creates every table on a fresh database', () => {
     migrate(fixture.db)
@@ -51,21 +57,14 @@ describe('migrate', () => {
     ).toBeUndefined()
   })
 
-  it('enables WAL, which is what lets readers proceed during a write', () => {
-    expect(
-      (fixture.db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode
-    ).toBe('wal')
-  })
+  // WAL is deliberately not asserted here: openDatabase sets it, not migrate(),
+  // and the smoke suite pins it on the real application's database.
 
   // The DELETE that clears a stale rejection runs on every successful insert,
-  // against a table that is the library's whole import history. Planned over
-  // the shipped text, not a hand-copy that drifts from queries.ts.
+  // against a table that is the library's whole import history.
   it('indexes the column the rejection sweep looks up', () => {
     migrate(fixture.db)
-    const plan = fixture.db
-      .prepare(`EXPLAIN QUERY PLAN ${CLEAR_REJECTION_SQL}`)
-      .all() as { detail: string }[]
-    expect(plan.map((step) => step.detail).join(' ')).not.toMatch(/SCAN/)
+    expect(plan(CLEAR_REJECTION_SQL)).not.toMatch(/SCAN/)
   })
 
   // Asserted against the query that draws the library, not the index in
@@ -73,11 +72,7 @@ describe('migrate', () => {
   // every list call in a temp B-tree.
   it('serves the library listing without sorting it by hand', () => {
     migrate(fixture.db)
-    const plan = fixture.db
-      .prepare(`EXPLAIN QUERY PLAN ${LIST_READY_SQL}`)
-      .all() as { detail: string }[]
-    const detail = plan.map((step) => step.detail).join(' ')
-
+    const detail = plan(LIST_READY_SQL)
     expect(detail).toMatch(/images_ready_order/)
     expect(detail).not.toMatch(/TEMP B-TREE/)
   })
@@ -86,9 +81,6 @@ describe('migrate', () => {
   // cascade's, not the DELETE's own lookup — openDatabase enables it.
   it('deletes an image without scanning the queue for its children', () => {
     migrate(fixture.db)
-    const plan = fixture.db
-      .prepare(`EXPLAIN QUERY PLAN ${DELETE_IMAGE_SQL}`)
-      .all() as { detail: string }[]
-    expect(plan.map((step) => step.detail).join(' ')).not.toMatch(/SCAN/)
+    expect(plan(DELETE_IMAGE_SQL)).not.toMatch(/SCAN/)
   })
 })

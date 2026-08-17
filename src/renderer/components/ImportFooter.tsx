@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FailureReason, Failures, QueueCounts } from '../../shared/types.js'
 import { MAX_IMPORT_BYTES, WALK_MAX_DEPTH, WALK_MAX_FILES } from '../../shared/types.js'
-import { useAttempt } from '../actions.js'
+import type { RunAttempt } from '../actions.js'
 import { basename, megabytes } from '../format.js'
 
 /** Main emits a code; the wording and the units are decided here. */
@@ -23,16 +23,22 @@ const isCode = (error: string): error is FailureReason => Object.hasOwn(REJECT_C
 const describe = (error: string | null): string =>
   error === null ? 'failed' : isCode(error) ? REJECT_COPY[error] : error
 
-type Props = { counts: QueueCounts; failures: Failures; onChanged: () => void }
+type Props = {
+  counts: QueueCounts
+  failures: Failures
+  /** The app-level ingest attempt: the drop target in App and the buttons here
+      share one notice, so a failed drop reports where a failed click does. */
+  failed: string | null
+  run: RunAttempt
+}
 
 /**
  * The import button becomes the progress strip. Capture-date ordering means
  * new imports scatter into the middle of the library rather than appearing on
  * top, so this is the only place anything visibly happens during an ingest.
  */
-export function ImportFooter({ counts, failures, onChanged }: Props) {
+export function ImportFooter({ counts, failures, failed, run }: Props) {
   const [showFailures, setShowFailures] = useState(false)
-  const { failed, run } = useAttempt(onChanged)
   // Every ingest mutation reports its failure and is followed by a refresh;
   // stating both rules here once means a new button cannot quietly forget them.
   const mutate = (verb: string, command: () => Promise<unknown>) => run(verb, command, true)

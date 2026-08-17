@@ -21,17 +21,17 @@ describe('enqueue', () => {
     expect(jobRows()).toHaveLength(1)
   })
 
-  it('clears a standing rejection when the file finally arrives', () => {
+  it('clears a standing rejection when the file finally arrives', async () => {
     const queue = new Queue(fixture.db)
-    queue.recordFailures([{ path: path('big.jpg'), reason: 'too-large' }])
+    await queue.recordFailures([{ path: path('big.jpg'), reason: 'too-large' }])
     expect(queue.failures().total).toBe(1)
     queue.enqueue(path('big.jpg'))
     expect(queue.failures().total).toBe(0)
   })
 
-  it('does not let importing one file clear a truncation notice that names it', () => {
+  it('does not let importing one file clear a truncation notice that names it', async () => {
     const queue = new Queue(fixture.db)
-    queue.recordFailures([{ path: path('last.jpg'), reason: 'walk-count' }])
+    await queue.recordFailures([{ path: path('last.jpg'), reason: 'walk-count' }])
     queue.enqueue(path('last.jpg'))
     expect(queue.failures().total).toBe(1)
   })
@@ -169,9 +169,9 @@ describe('retry and dismiss', () => {
     expect(queue.counts()).toEqual({ pending: 1, claimed: 0, done: 0, failed: 0 })
   })
 
-  it('retry of a rejection (no image) or a live row moves nothing', () => {
+  it('retry of a rejection (no image) or a live row moves nothing', async () => {
     const queue = new Queue(fixture.db)
-    queue.recordFailures([{ path: path('r.jpg'), reason: 'too-large' }])
+    await queue.recordFailures([{ path: path('r.jpg'), reason: 'too-large' }])
     const rejection = queue.failures().items[0]!
     queue.retry(rejection.id)
     expect(jobRows()[0]!.state).toBe('failed')
@@ -185,13 +185,13 @@ describe('retry and dismiss', () => {
     expect(queue.enqueue(path('bad.jpg'))).not.toBeNull() // not a duplicate any more
   })
 
-  it('dismiss all clears every kind of failure and frees the files for re-import', () => {
+  it('dismiss all clears every kind of failure and frees the files for re-import', async () => {
     const queue = new Queue(fixture.db)
     // A decode failure with an image behind it, and a rejection without one.
     queue.enqueue(path('bad.jpg'))
     const job = queue.claim('w1')!
     queue.fail(job.id, job.image_id, 'decode error', 'w1')
-    queue.recordFailures([{ path: path('huge.jpg'), reason: 'too-large' }])
+    await queue.recordFailures([{ path: path('huge.jpg'), reason: 'too-large' }])
     // Live work must survive the sweep.
     queue.enqueue(path('live.jpg'))
 
@@ -243,12 +243,27 @@ describe('cancelPending', () => {
     const { enqueued } = await queue.enqueueAll(many, { generation, chunkSize: 2 })
     expect(enqueued).toBe(0)
   })
+
+  // Complaints included: a cancel between chunks must stop the rejection
+  // writes too, or the footer fills with rows the cancel promised to drop.
+  it('interrupts a recordFailures already in flight', async () => {
+    const queue = new Queue(fixture.db)
+    const generation = queue.generation
+    queue.cancelPending()
+    const wrote = await queue.recordFailures(
+      [{ path: path('big.jpg'), reason: 'too-large' }],
+      undefined,
+      generation
+    )
+    expect(wrote).toBe(0)
+    expect(queue.failures().total).toBe(0)
+  })
 })
 
 describe('recordFailures', () => {
-  it('collapses the same complaint enumerated twice into one row', () => {
+  it('collapses the same complaint enumerated twice into one row', async () => {
     const queue = new Queue(fixture.db)
-    const wrote = queue.recordFailures([
+    const wrote = await queue.recordFailures([
       { path: path('dup.jpg'), reason: 'too-large' },
       { path: path('dup.jpg'), reason: 'too-large' }
     ])
@@ -256,17 +271,17 @@ describe('recordFailures', () => {
     expect(queue.failures().total).toBe(1)
   })
 
-  it('refreshes a repeated complaint instead of stacking copies', () => {
+  it('refreshes a repeated complaint instead of stacking copies', async () => {
     const queue = new Queue(fixture.db)
-    queue.recordFailures([{ path: path('big.jpg'), reason: 'too-large' }])
-    queue.recordFailures([{ path: path('big.jpg'), reason: 'too-large' }])
+    await queue.recordFailures([{ path: path('big.jpg'), reason: 'too-large' }])
+    await queue.recordFailures([{ path: path('big.jpg'), reason: 'too-large' }])
     expect(queue.failures().total).toBe(1)
   })
 
-  it('does not complain about a file that is already in the library', () => {
+  it('does not complain about a file that is already in the library', async () => {
     const queue = new Queue(fixture.db)
     queue.enqueue(path('grown.jpg'))
-    queue.recordFailures([{ path: path('grown.jpg'), reason: 'too-large' }])
+    await queue.recordFailures([{ path: path('grown.jpg'), reason: 'too-large' }])
     expect(queue.failures().total).toBe(0)
   })
 })

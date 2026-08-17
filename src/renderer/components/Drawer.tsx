@@ -1,37 +1,20 @@
-import { useEffect, useRef } from 'react'
-import type { Failures, ImageRow, QueueCounts } from '../../shared/types.js'
-import type { Filters, Grouped, GroupKey } from '../groups.js'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { drawerWidth, nearestColumns } from '../layout.js'
-import { Grid } from './Grid.js'
-import { GroupBar } from './GroupBar.js'
-import { ImportFooter } from './ImportFooter.js'
 
 type Props = {
-  /** Every library row, for facet counts; `visible` is what the grid draws. */
-  images: ImageRow[]
-  visible: ImageRow[]
-  /** The same rows as sections, or null when nothing is grouped. Grouped once, in App. */
-  grouped: Grouped[] | null
-  counts: QueueCounts
-  failures: Failures
   columns: number
-  groupBy: GroupKey | null
-  filters: Filters
-  selectedIds: ReadonlySet<number>
-  focusedId: number | null
-  onSelect: (id: number, shift: boolean) => void
   onColumns: (columns: number) => void
-  onGroupBy: (key: GroupKey | null) => void
-  onFilters: (filters: Filters) => void
   onClose: () => void
-  onChanged: () => void
+  children: ReactNode
 }
 
-export function Drawer(props: Props) {
+/**
+ * A layout shell: header, whatever App composes inside, and the divider. The
+ * grid, group bar and footer take their props from App directly rather than
+ * transiting an ever-growing pass-through Props type here.
+ */
+export function Drawer({ columns, onColumns, onClose, children }: Props) {
   const dragging = useRef(false)
-  // Depend on the one callback, not the whole props object, or the drag
-  // listeners are torn down and reattached on every unrelated re-render.
-  const { onColumns } = props
 
   useEffect(() => {
     // A mouseup released outside the window never arrives, so trust buttons
@@ -51,36 +34,15 @@ export function Drawer(props: Props) {
   }, [onColumns])
 
   return (
-    <aside className="drawer" style={{ width: drawerWidth(props.columns) }}>
+    <aside className="drawer" style={{ width: drawerWidth(columns) }}>
       <header className="drawer-header">
         <h1>Image Library &amp; Display</h1>
-        <button className="icon" onClick={props.onClose} title="Close drawer ([d])">
+        <button className="icon" onClick={onClose} title="Close drawer ([d])">
           ×
         </button>
       </header>
 
-      {/* Secondary by design: hidden until there is a library worth slicing. */}
-      {props.images.length > 1 && (
-        <GroupBar
-          images={props.images}
-          groupBy={props.groupBy}
-          filters={props.filters}
-          onGroupBy={props.onGroupBy}
-          onFilters={props.onFilters}
-        />
-      )}
-
-      <Grid
-        images={props.visible}
-        grouped={props.grouped}
-        columns={props.columns}
-        selectedIds={props.selectedIds}
-        focusedId={props.focusedId}
-        onSelect={props.onSelect}
-        onChanged={props.onChanged}
-      />
-
-      <ImportFooter counts={props.counts} failures={props.failures} onChanged={props.onChanged} />
+      {children}
 
       <div
         className="divider"

@@ -16,6 +16,16 @@ const SELF_CLEARING = CLEARS_ON_IMPORT.map((reason) => `'${reason}'`).join(',')
 const CANCELLED_SESSION = -1
 
 /**
+ * Invariant 3 (ownership) as text, once: the sweep can reclaim a job whose
+ * worker is merely slow, and the loser must not close it out. Every statement
+ * that settles a claimed row interpolates this rather than restating it.
+ */
+const OWNED_CLAIM = `WHERE id = ? AND state = 'claimed' AND claimed_by = ?`
+
+/** A failure with no job behind it — the definition of a rejection row. */
+const REJECTION_ROW = `canonical_path = ? AND image_id IS NULL`
+
+/**
  * Exported for the query-plan pins in migrate.test.ts: the plan assertions must
  * run over the shipped text, or they pin a hand-copy that silently drifts.
  */
@@ -27,7 +37,7 @@ export const DELETE_IMAGE_SQL = 'DELETE FROM images WHERE id = ?'
 
 export const CLEAR_REJECTION_SQL = `
       DELETE FROM ingestion_log
-       WHERE canonical_path = ? AND image_id IS NULL
+       WHERE ${REJECTION_ROW}
          AND error IN (${SELF_CLEARING})`
 
 /** The only place SQL text lives outside migrations. Prepared once per connection. */
@@ -82,7 +92,7 @@ export function createQueries(db: DatabaseSync) {
     refreshRejection: db.prepare(`
       UPDATE ingestion_log
          SET state = 'failed', error = ?, session = ?, enqueued_at = ?, finished_at = ?
-       WHERE canonical_path = ? AND image_id IS NULL
+       WHERE ${REJECTION_ROW}
          AND (error IN (${SELF_CLEARING})) = ?
       RETURNING id`),
 
@@ -114,21 +124,19 @@ export function createQueries(db: DatabaseSync) {
          AND state = 'pending'
       RETURNING *`),
 
-    // Guarded on claimed_by, not just state: the sweep can reclaim a job whose
-    // worker is merely slow, and the loser must not close it out.
     completeJob: db.prepare(`
       UPDATE ingestion_log SET state = 'done', finished_at = ?, error = NULL
-       WHERE id = ? AND state = 'claimed' AND claimed_by = ?`),
+       ${OWNED_CLAIM}`),
 
     failJob: db.prepare(`
       UPDATE ingestion_log SET state = 'failed', finished_at = ?, error = ?
-       WHERE id = ? AND state = 'claimed' AND claimed_by = ?`),
+       ${OWNED_CLAIM}`),
 
     // Renewal is what turns the claim timeout into a liveness signal: without
     // it a slow decode on a spun-down volume looks identical to a dead worker.
     renewClaim: db.prepare(`
       UPDATE ingestion_log SET claimed_at = ?
-       WHERE id = ? AND state = 'claimed' AND claimed_by = ?`),
+       ${OWNED_CLAIM}`),
 
     releaseAbandoned: db.prepare(`
       UPDATE ingestion_log SET state = 'pending', claimed_by = NULL, claimed_at = NULL
@@ -193,7 +201,7 @@ export function createQueries(db: DatabaseSync) {
     // A folder that reads is no longer unreadable; a later walk proves exactly that.
     clearFolderComplaint: db.prepare(`
       DELETE FROM ingestion_log
-       WHERE canonical_path = ? AND image_id IS NULL AND error = 'folder-unreadable'`),
+       WHERE ${REJECTION_ROW} AND error = 'folder-unreadable'`),
 
     // Cancel ends the run but keeps work already in flight. That work belongs
     // to no run afterwards, or it holds the cancelled run open and every drop

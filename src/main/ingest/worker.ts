@@ -6,15 +6,19 @@ import { openDatabase } from '../db/open.js'
 import { processJob } from './processJob.js'
 import { CLAIM_TIMEOUT_MS, Queue } from './queue.js'
 
-/** Thread plumbing only. The job body lives in processJob so tests need no worker. */
-type Init = { dbFile: string; derivativesDir: string; workerId: string }
+/**
+ * Thread plumbing only. The job body lives in processJob so tests need no
+ * worker. Exported so pool.ts types its workerData literal against this —
+ * the same drift-is-a-compile-error rule ipc.ts applies to the other seam.
+ */
+export type WorkerInit = { dbFile: string; derivativesDir: string; workerId: string }
 
 const IDLE_MS = 250
 
 /** Comfortably inside CLAIM_TIMEOUT_MS, so one missed beat is not a lost claim. */
 const HEARTBEAT_MS = Math.floor(CLAIM_TIMEOUT_MS / 3)
 
-const { dbFile, derivativesDir, workerId } = workerData as Init
+const { dbFile, derivativesDir, workerId } = workerData as WorkerInit
 const db = openDatabase(dbFile) // this thread's own connection
 const q = createQueries(db) // prepared once, reused by every job
 const queue = new Queue(db, q)

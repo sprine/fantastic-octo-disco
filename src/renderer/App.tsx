@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAttempt } from './actions.js'
 import { Drawer } from './components/Drawer.js'
+import { GroupBar } from './components/GroupBar.js'
+import { Grid } from './components/Grid.js'
+import { ImportFooter } from './components/ImportFooter.js'
 import { applyFilters, groupImages, type Filters, type GroupKey } from './groups.js'
 import { Rail } from './components/Rail.js'
 import { Viewer } from './components/Viewer.js'
 import { extendTo, NO_SELECTION, selectOne, type Selection } from './selection.js'
 import type { DeleteMode } from '../shared/types.js'
+import { useLatest } from './state/useLatest.js'
 import { useLibrary } from './state/useLibrary.js'
 import { useSettings } from './state/useSettings.js'
 import { clamp } from './zoom.js'
@@ -12,6 +17,9 @@ import { clamp } from './zoom.js'
 export function App() {
   const { images, counts, failures, refresh } = useLibrary()
   const { settings, update } = useSettings()
+  // One attempt for every ingest mutation — the footer's buttons and the drop
+  // target below share it, so a failed drop reports where a failed click does.
+  const { failed: importFailed, run: runImport } = useAttempt(refresh)
   // The focused image (viewer) and the multi-selection are separate values:
   // a shift-click grows the set but the viewer still shows one image.
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -39,15 +47,16 @@ export function App() {
   // Stable so the divider's drag listeners survive unrelated re-renders.
   const onColumns = useCallback((columns: number) => update(() => ({ columns })), [update])
 
-  const onSelect = useCallback(
-    (id: number, shift: boolean) => {
-      setSelection((prev) =>
-        shift ? extendTo(prev, visible.map((image) => image.id), id) : selectOne(id)
-      )
-      setSelectedId(id)
-    },
-    [visible]
-  )
+  // Reads `visible` through a ref: keyed on it, every refresh during an import
+  // would mint a new onSelect and re-render all 500 memoised tiles — the exact
+  // churn useLibrary's row reconciliation exists to prevent.
+  const visibleRef = useLatest(visible)
+  const onSelect = useCallback((id: number, shift: boolean) => {
+    setSelection((prev) =>
+      shift ? extendTo(prev, visibleRef.current.map((image) => image.id), id) : selectOne(id)
+    )
+    setSelectedId(id)
+  }, [])
 
   // Traversal is an index move over the same ordered list the grid renders.
   // It collapses the multi-selection: an arrow press means "this one now".
@@ -87,10 +96,8 @@ export function App() {
   // The handler reads the latest step/remove through refs, so the window
   // listener is registered once instead of reattached on every arrow press —
   // the one key people hold down.
-  const stepRef = useRef(step)
-  stepRef.current = step
-  const removeRef = useRef(removeSelected)
-  removeRef.current = removeSelected
+  const stepRef = useLatest(step)
+  const removeRef = useLatest(removeSelected)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -132,39 +139,43 @@ export function App() {
       event.preventDefault()
       const paths = window.api.files.pathsFor(Array.from(event.dataTransfer.files))
       if (!paths.length) return
-      try {
-        await window.api.ingest.addPaths(paths)
-      } catch (error) {
-        // An import interrupted by quit rejects here; an unhandled rejection
-        // would be the only trace.
-        console.error('[import] failed', error)
-      }
-      await refresh()
+      const ok = await runImport('import', () => window.api.ingest.addPaths(paths), true)
+      // The notice renders in the footer, which only exists inside the drawer:
+      // a failed drop with the drawer closed must open it, or it reports nowhere.
+      if (!ok) update(() => ({ drawerOpen: true }))
     },
-    [refresh]
+    [runImport, update]
   )
 
   return (
     <div className="app" onDrop={onDrop} onDragOver={(event) => event.preventDefault()}>
       {settings.drawerOpen ? (
         <Drawer
-          images={images}
-          visible={visible}
-          grouped={grouped}
-          counts={counts}
-          failures={failures}
           columns={settings.columns}
-          groupBy={groupBy}
-          filters={filters}
-          selectedIds={selection.ids}
-          focusedId={selectedId}
-          onSelect={onSelect}
           onColumns={onColumns}
-          onGroupBy={setGroupBy}
-          onFilters={setFilters}
           onClose={() => update(() => ({ drawerOpen: false }))}
-          onChanged={refresh}
-        />
+        >
+          {/* Secondary by design: hidden until there is a library worth slicing. */}
+          {images.length > 1 && (
+            <GroupBar
+              images={images}
+              groupBy={groupBy}
+              filters={filters}
+              onGroupBy={setGroupBy}
+              onFilters={setFilters}
+            />
+          )}
+          <Grid
+            images={visible}
+            grouped={grouped}
+            columns={settings.columns}
+            selectedIds={selection.ids}
+            focusedId={selectedId}
+            onSelect={onSelect}
+            onChanged={refresh}
+          />
+          <ImportFooter counts={counts} failures={failures} failed={importFailed} run={runImport} />
+        </Drawer>
       ) : (
         <Rail onOpen={() => update(() => ({ drawerOpen: true }))} count={images.length} />
       )}

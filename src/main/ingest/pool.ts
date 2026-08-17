@@ -1,6 +1,7 @@
 import { availableParallelism } from 'node:os'
 import { Worker } from 'node:worker_threads'
 import type { IngestEvent } from '../../shared/ipc.js'
+import type { WorkerInit } from './worker.js'
 
 /**
  * Two workers, not eight: decode is memory-heavy (peak scales with decoded
@@ -15,16 +16,15 @@ const MAX_BACKOFF_MS = 30_000
 /** Sent by the worker once it reaches the job loop. `started` never reaches the renderer. */
 type WorkerMessage = IngestEvent | { type: 'started' }
 
+const WORKER_ENTRY = new URL('./worker.js', import.meta.url)
+
 export class WorkerPool {
   private workers: Worker[] = []
 
   constructor(
     private readonly dbFile: string,
     private readonly derivativesDir: string,
-    private readonly onEvent: (event: IngestEvent) => void,
-    private readonly size = DEFAULT_POOL_SIZE,
-    /** Overridden only by tests that need the built thread, not the source. */
-    private readonly entry = new URL('./worker.js', import.meta.url)
+    private readonly onEvent: (event: IngestEvent) => void
   ) {}
 
   private stopping = false
@@ -34,7 +34,7 @@ export class WorkerPool {
   start(): void {
     if (this.workers.length) return
     this.stopping = false
-    for (let i = 0; i < this.size; i++) this.spawn(i)
+    for (let i = 0; i < DEFAULT_POOL_SIZE; i++) this.spawn(i)
   }
 
   /**
@@ -45,21 +45,21 @@ export class WorkerPool {
    */
   private spawn(i: number): void {
     let reachedJobLoop = false
-    const worker = new Worker(this.entry, {
-      // Paths handed over rather than derived: they come from `app`, a
-      // main-thread object. The id is scoped to the launch, not the thread
-      // index: a crashed instance's `w0` and the relaunch's `w0` must differ
-      // for claimed_by to answer its one question.
-      workerData: {
-        dbFile: this.dbFile,
-        derivativesDir: this.derivativesDir,
-        workerId: `${process.pid}-w${i}`
-      }
-    })
+    // Paths handed over rather than derived: they come from `app`, a
+    // main-thread object. The id is scoped to the launch, not the thread
+    // index: a crashed instance's `w0` and the relaunch's `w0` must differ
+    // for claimed_by to answer its one question.
+    const init: WorkerInit = {
+      dbFile: this.dbFile,
+      derivativesDir: this.derivativesDir,
+      workerId: `${process.pid}-w${i}`
+    }
+    const worker = new Worker(WORKER_ENTRY, { workerData: init })
     worker.on('message', (message: WorkerMessage) => {
+      // The exit handler is the sole writer of `crashes`: it resets the count
+      // itself whenever the instance had reached the loop.
       if (message.type === 'started') {
         reachedJobLoop = true
-        this.crashes.set(i, 0)
         return
       }
       this.onEvent(message)

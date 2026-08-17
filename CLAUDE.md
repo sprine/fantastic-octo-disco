@@ -34,9 +34,12 @@ Node 22+. `node:sqlite` needs `NODE_OPTIONS=--experimental-sqlite` under plain n
 
 ## Invariants — do not break these
 
-1. **Protocol cache**: anything that writes `thumb_path`/`display_path` must call
-   `invalidate(id)` (see `protocol.ts`), or that image 404s forever. Current writers:
-   pool event handler in `index.ts`, `removeImages` in `library.ts`.
+1. **Protocol cache caches hits only and heals itself** (`protocol.ts`): a derivative
+   path is a pure function of (id, variant), so a hit goes stale only when its file
+   vanishes — and a failed serve evicts the entry and answers 404. No code anywhere
+   calls invalidate; keep it that way. Never cache a miss: that would re-create the
+   "every writer of `thumb_path`/`display_path` must invalidate or the image 404s
+   forever" discipline, enforceable only by a hand-maintained writer list.
 2. **Commit order**: derivative files land on disk (scratch name → `rename`) *before* the
    row flips to `ready` (`processJob.ts`). Never reverse it — a crash must never produce a
    ready row with no file behind it.

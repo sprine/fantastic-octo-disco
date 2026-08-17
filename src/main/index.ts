@@ -4,7 +4,7 @@ import { openDatabase } from './db/open.js'
 import { migrate } from './db/migrate.js'
 import { createQueries } from './db/queries.js'
 import { CLAIM_TIMEOUT_MS, Queue } from './ingest/queue.js'
-import { CHANNELS } from '../shared/ipc.js'
+import { CHANNELS, type IngestEvent } from '../shared/ipc.js'
 import { WorkerPool } from './ingest/pool.js'
 import { registerIpc } from './ipc.js'
 import { dbFile, ensureDataDirs, settingsFile, thumbnailsDir } from './paths.js'
@@ -47,16 +47,16 @@ async function start(): Promise<void> {
   // and the single-instance lock means nothing else can be holding one now.
   queue.releaseAbandoned(Date.now(), 0)
 
-  const { invalidate } = registerImgProtocol(q)
-  registerIpc({ db, q, queue, settings: openSettings(settingsFile()), invalidate })
+  registerImgProtocol(q)
+  registerIpc({ db, q, queue, settings: openSettings(settingsFile()) })
 
   const window = createWindow()
-  // Reads the live window rather than capturing this one: `activate` can build
-  // a replacement, and a captured const would pin the destroyed original.
-  pool = new WorkerPool(dbFile(), thumbnailsDir(), (event) => {
-    if (event.imageId !== null) invalidate(event.imageId) // derivatives may have changed
+  // Reads the live window rather than capturing one: `activate` can build a
+  // replacement, and a captured const would pin the destroyed original.
+  const pushIngestEvent = (event: IngestEvent): void =>
     BrowserWindow.getAllWindows()[0]?.webContents.send(CHANNELS.ingestEvent, event)
-  })
+
+  pool = new WorkerPool(dbFile(), thumbnailsDir(), pushIngestEvent)
   pool.start()
 
   // Once at launch is not enough: a worker can die mid-session too. Giving up
@@ -65,11 +65,7 @@ async function start(): Promise<void> {
   // still pending.
   const sweep = setInterval(() => {
     if (queue.releaseAbandoned() > 0) {
-      BrowserWindow.getAllWindows()[0]?.webContents.send(CHANNELS.ingestEvent, {
-        type: 'failed',
-        jobId: -1,
-        imageId: null
-      })
+      pushIngestEvent({ type: 'failed', jobId: -1, imageId: null })
     }
   }, CLAIM_TIMEOUT_MS)
   app.once('before-quit', () => clearInterval(sweep))
