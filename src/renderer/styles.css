@@ -177,6 +177,9 @@ button {
   /* The drawer's 1px border eats a pixel of what drawerWidth() budgeted;
      'auto' would show a scrollbar for that pixel as readily as for a column. */
   overflow-x: hidden;
+  /* Always reserve the gutter: it keeps drawerWidth()'s budget honest, so the
+     inset survives instead of being clipped once a scrollbar appears. */
+  scrollbar-gutter: stable;
   padding: 8px 16px 16px;
   flex: 1;
   align-content: start;

@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { drawerWidth, nearestColumns, GUTTER, PADDING, TILE } from '../../src/renderer/layout.js'
+import {
+  drawerWidth,
+  nearestColumns,
+  GUTTER,
+  PADDING,
+  SCROLLBAR,
+  TILE,
+} from '../../src/renderer/layout.js'
 import { COLUMN_SNAPS } from '../../src/shared/settings.js'
 
 describe('drawerWidth', () => {
   it('matches the mockup at two columns', () => {
-    // app.svg: drawer x8..x399 = 391px of content box.
-    expect(drawerWidth(2)).toBe(PADDING * 2 + 2 * TILE + GUTTER)
-    expect(drawerWidth(2)).toBe(391)
+    // app.svg: drawer x8..x399 = 391px of tiles and inset, plus the scroll gutter.
+    expect(drawerWidth(2)).toBe(PADDING * 2 + SCROLLBAR + 2 * TILE + GUTTER)
+    expect(drawerWidth(2)).toBe(399)
   })
 })
 
