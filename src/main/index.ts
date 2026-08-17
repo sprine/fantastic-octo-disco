@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage } from 'electron'
+import { app, BrowserWindow, nativeImage, nativeTheme } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openDatabase } from './db/open.js'
@@ -46,6 +46,11 @@ let pool: WorkerPool | null = null
 
 async function start(): Promise<void> {
   await app.whenReady()
+  // Dark chrome under a light interface, on purpose: the title bar and the
+  // native dialogs recede, leaving the images the brightest thing on screen.
+  // The renderer never reads prefers-color-scheme, so nothing below the bar
+  // follows.
+  nativeTheme.themeSource = 'dark'
   // macOS ignores BrowserWindow's icon: unpackaged, the dock is the only place
   // the icon can be set at all.
   if (process.platform === 'darwin') app.dock?.setIcon(nativeImage.createFromPath(appIconFile()))
