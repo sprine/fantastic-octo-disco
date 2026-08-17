@@ -6,14 +6,13 @@ import type { ImageRow } from '../shared/types.js'
  * cross-filter arithmetic tests without a DOM. Everything works on the page
  * of rows the renderer already holds — no new queries.
  */
-export const GROUP_KEYS = ['imported', 'captured', 'folder', 'format'] as const
+export const GROUP_KEYS = ['captured', 'folder', 'format'] as const
 export type GroupKey = (typeof GROUP_KEYS)[number]
 
 /** One value per dimension; dimensions compose with AND. */
 export type Filters = Partial<Record<GroupKey, string>>
 
 export const GROUP_LABELS: Record<GroupKey, string> = {
-  imported: 'imported',
   captured: 'file date',
   folder: 'folder',
   format: 'format'
@@ -42,8 +41,6 @@ const month = (at: number | null): string => {
 
 export function groupValue(image: ImageRow, key: GroupKey): string {
   switch (key) {
-    case 'imported':
-      return month(image.imported_at)
     case 'captured':
       return month(image.captured_at)
     case 'folder':
@@ -67,9 +64,9 @@ export type Facet = { value: string; count: number }
  * filtered set instead would collapse the open dimension to its own selection
  * and there would be nothing left to switch to.
  *
- * Date dimensions keep the library's own (capture-ordered) encounter order;
- * the unordered ones rank by count, since the biggest bucket is the one a
- * larger library most wants first.
+ * The date dimension keeps the library's own (capture-ordered) encounter
+ * order; the unordered ones rank by count, since the biggest bucket is the one
+ * a larger library most wants first.
  */
 export function facets(images: ImageRow[], filters: Filters, key: GroupKey): Facet[] {
   const others = { ...filters }
@@ -80,7 +77,7 @@ export function facets(images: ImageRow[], filters: Filters, key: GroupKey): Fac
     counts.set(value, (counts.get(value) ?? 0) + 1)
   }
   const list = [...counts].map(([value, count]) => ({ value, count }))
-  return key === 'folder' || key === 'format' ? list.sort((a, b) => b.count - a.count) : list
+  return key === 'captured' ? list : list.sort((a, b) => b.count - a.count)
 }
 
 export type Grouped = { value: string; images: ImageRow[] }
