@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Image library">
+  <title>Image library</title>
+  <!-- Palette tracks the app's own ink, paper, and #a60 accent tokens. -->
+  <defs>
+    <clipPath id="hero">
+      <rect x="168" y="168" width="448" height="448" rx="32" />
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" rx="228" fill="#1e1e1e" />
+
+  <!-- Five muted tiles read as the library; the one lit tile is the display. -->
+  <g fill="#454545">
+    <rect x="648" y="168" width="208" height="208" rx="32" />
+    <rect x="648" y="408" width="208" height="208" rx="32" />
+    <rect x="168" y="648" width="208" height="208" rx="32" />
+    <rect x="408" y="648" width="208" height="208" rx="32" />
+    <rect x="648" y="648" width="208" height="208" rx="32" />
+  </g>
+
+  <rect x="168" y="168" width="448" height="448" rx="32" fill="#ffffff" />
+  <g clip-path="url(#hero)">
+    <circle cx="500" cy="268" r="46" fill="#aa6600" />
+    <path d="M352 318 488 540 216 540Z" fill="#1e1e1e" />
+    <path d="M470 382 568 540 372 540Z" fill="#1e1e1e" />
+  </g>
+</svg>

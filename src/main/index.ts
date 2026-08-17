@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, nativeImage } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { openDatabase } from './db/open.js'
 import { migrate } from './db/migrate.js'
@@ -7,7 +7,7 @@ import { CLAIM_TIMEOUT_MS, Queue } from './ingest/queue.js'
 import { CHANNELS, type IngestEvent } from '../shared/ipc.js'
 import { WorkerPool } from './ingest/pool.js'
 import { registerIpc } from './ipc.js'
-import { dbFile, ensureDataDirs, settingsFile, thumbnailsDir } from './paths.js'
+import { appIconFile, dbFile, ensureDataDirs, settingsFile, thumbnailsDir } from './paths.js'
 import { registerImgProtocol, registerImgScheme } from './protocol.js'
 import { openSettings } from './settings.js'
 
@@ -37,6 +37,9 @@ let pool: WorkerPool | null = null
 
 async function start(): Promise<void> {
   await app.whenReady()
+  // macOS ignores BrowserWindow's icon: unpackaged, the dock is the only place
+  // the icon can be set at all.
+  if (process.platform === 'darwin') app.dock?.setIcon(nativeImage.createFromPath(appIconFile()))
   ensureDataDirs()
   const db = openDatabase(dbFile())
   migrate(db)
@@ -107,6 +110,7 @@ function createWindow(): BrowserWindow {
     minHeight: 480,
     show: false,
     backgroundColor: '#ffffff',
+    icon: appIconFile(),
     webPreferences: {
       preload: fileURLToPath(new URL('../preload/index.cjs', import.meta.url)),
       contextIsolation: true,
