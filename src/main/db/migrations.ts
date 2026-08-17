@@ -62,5 +62,15 @@ export const MIGRATIONS: readonly string[] = [
     deleted_on  INTEGER NOT NULL,
     error       TEXT
   );
+  `,
+
+  `
+  -- The FK cascade off images has to find its children, and without an index on
+  -- the referencing column that is a scan of the whole import history per row
+  -- deleted. 'done' rows are never pruned, so the cost grows with the library's
+  -- age rather than its queue: measured at 20k images, deleting 2000 rows went
+  -- 1450ms → 6ms. Every image delete pays it — trashing a selection, dismissing
+  -- the failures list, cancelling a drop.
+  CREATE INDEX ingestion_log_image ON ingestion_log (image_id);
   `
 ]

@@ -23,6 +23,8 @@ export const LIST_READY_SQL = `
       SELECT * FROM images WHERE status = 'ready'
       ORDER BY captured_at DESC, id DESC LIMIT ?`
 
+export const DELETE_IMAGE_SQL = 'DELETE FROM images WHERE id = ?'
+
 export const CLEAR_REJECTION_SQL = `
       DELETE FROM ingestion_log
        WHERE canonical_path = ? AND image_id IS NULL
@@ -60,7 +62,7 @@ export function createQueries(db: DatabaseSync) {
 
     markDrift: db.prepare('UPDATE images SET drift = ?, checked_at = ?, mtime_ms = ? WHERE id = ?'),
 
-    deleteImage: db.prepare('DELETE FROM images WHERE id = ?'),
+    deleteImage: db.prepare(DELETE_IMAGE_SQL),
 
     // ---- queue --------------------------------------------------------------
     enqueue: db.prepare(`

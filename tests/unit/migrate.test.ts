@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { migrate } from '../../src/main/db/migrate.js'
-import { CLEAR_REJECTION_SQL, LIST_READY_SQL, userVersion } from '../../src/main/db/queries.js'
+import {
+  CLEAR_REJECTION_SQL,
+  DELETE_IMAGE_SQL,
+  LIST_READY_SQL,
+  userVersion
+} from '../../src/main/db/queries.js'
 import { MIGRATIONS } from '../../src/main/db/migrations.js'
 import { tempDatabase } from '../helpers.js'
 
@@ -75,5 +80,15 @@ describe('migrate', () => {
 
     expect(detail).toMatch(/images_ready_order/)
     expect(detail).not.toMatch(/TEMP B-TREE/)
+  })
+
+  // Planned with foreign_keys on, since the scan being pinned out is the
+  // cascade's, not the DELETE's own lookup — openDatabase enables it.
+  it('deletes an image without scanning the queue for its children', () => {
+    migrate(fixture.db)
+    const plan = fixture.db
+      .prepare(`EXPLAIN QUERY PLAN ${DELETE_IMAGE_SQL}`)
+      .all() as { detail: string }[]
+    expect(plan.map((step) => step.detail).join(' ')).not.toMatch(/SCAN/)
   })
 })
