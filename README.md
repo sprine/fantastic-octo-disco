@@ -7,15 +7,23 @@ window: a thumbnail grid on the left, a big zoomable viewer on the right.
 
 ## Quick start
 
+Node 22+.
+
 ```bash
-npm install
+npm ci             # or npm install; postinstall fetches the Electron binary
 npm run dev        # launch with hot reload
 npm test           # unit tests + a real-app boot test
 npm run build      # typecheck + production build into out/
 ```
 
+If `npm run dev` ever dies with `Error: Electron uninstall`, the platform binary is
+missing (a pruned `node_modules`, an offline install, a cache wipe). Run
+`npm run postinstall` — installing dependencies alone does not fetch it.
+
 Drag images (or whole folders) anywhere onto the window, or click **+ Import images**.
-JPEG, PNG and TIF are supported, up to 20 MB per file.
+JPEG, PNG and TIF are supported, up to 20 MB per file. Need something to import?
+`scripts/download_commons_artwork.py` pulls public-domain images from Wikimedia Commons
+into `samples/`.
 
 | Key | Does |
 |-----|------|
@@ -23,6 +31,9 @@ JPEG, PNG and TIF are supported, up to 20 MB per file.
 | `m` | metadata panel |
 | `esc` | clear the viewer |
 | `d` | collapse / open the drawer |
+| `⌫` / `delete` | remove selected from library (file untouched) |
+| `⌘⌫` | delete selected originals (asks first) |
+| shift-click | select a range of tiles |
 | scroll / pinch | zoom (anchored on your pointer) |
 | double-click | open the original in your OS viewer |
 
@@ -45,7 +56,7 @@ flowchart LR
         Proto["img:// protocol\n+ id→path cache"]
         Pool["worker pool"]
     end
-    subgraph W["2 worker threads"]
+    subgraph W["worker threads (up to 2)"]
         WT["sharp decode\n→ WebP previews"]
     end
     DB[("metadata.db\nimages · ingestion_log · deletions_log")]
@@ -89,7 +100,9 @@ flowchart LR
 Every step is a row in SQLite, not a variable in memory — so if the app crashes or you
 force-quit mid-import, nothing is lost. On the next launch, half-finished work is picked up
 where it stopped. A file that keeps crashing its worker gets five attempts, then lands in
-the failure list with a reason instead of being retried forever.
+the failure list with a reason instead of being retried forever. The import footer lets
+you cancel what's still pending, and retry or dismiss failures — one at a time or all at
+once.
 
 Two details worth knowing:
 
@@ -108,7 +121,7 @@ flowchart LR
     A["click tile or ← →"] --> B["viewer shows display copy\n(zoom + pan, anchored)"]
     B -- "m" --> C["metadata panel\nfile · image · camera · capture · location"]
     B -- "double-click" --> D["OS opens the original"]
-    B -- "right-click tile" --> E["open / remove / delete"]
+    B -- "right-click tile" --> E["open / show in folder /\nremove / delete"]
 ```
 
 The grid is sorted by **capture date** — the moment the photo was taken (from EXIF), falling
@@ -117,11 +130,18 @@ one it used, and only shows fields the file actually has. GPS positions render a
 degrees; an EXIF altitude below sea level is labelled **Depth** (this app grew up around
 subsea survey imagery).
 
+A group bar above the grid buckets the current page by import month, file date, folder,
+or format; clicking a chip filters the grid, and filters from different dimensions
+combine. Shift-click selects a range of tiles — computed over the drawn order, so ranges
+follow the grouping — and the delete keys act on the whole selection.
+
 Removing has two flavours, deliberately one word apart:
 
 - **Remove from library** — forgets the photo. Your file is untouched.
 - **Delete original** — asks for confirmation, then moves the file to the OS trash.
   The confirmation lives in the main process, so no button anywhere can skip it.
+
+Both act on everything selected; deleting a batch asks once, naming the count.
 
 If a file has changed or gone missing since import, its tile gets a small `modified` /
 `missing` badge. The app never deletes your record just because a drive is unplugged.
@@ -147,10 +167,11 @@ src/
 │   ├── db/     open/migrate/queries — all SQL lives in queries.ts
 │   └── ingest/ walk → queue → worker pool → sharp derive
 ├── preload/    the window.api bridge (thin calls only)
-└── renderer/   React UI; zoom/layout/menu maths as pure, tested modules
+└── renderer/   React UI (components/, state/); zoom, layout, selection, grouping
+                and menu maths kept as pure, tested modules
 tests/
 ├── unit/       queue state machine, canonical paths, walk guards, EXIF rules
-├── renderer/   zoom / layout / panel maths (no DOM needed)
+├── renderer/   zoom / layout / selection / grouping / panel maths (no DOM needed)
 └── smoke/      boots the real app: bridge, protocol, a live worker decode
 ```
 

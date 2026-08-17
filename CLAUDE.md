@@ -7,6 +7,8 @@ over a custom `img://` protocol backed by SQLite.
 ## Commands
 
 ```bash
+npm ci               # postinstall runs install-electron — electron 43 has no postinstall
+                     # of its own, so nothing else fetches the platform binary
 npm run dev          # electron-vite dev with hot reload
 npm run build        # tsc (node + web projects) + electron-vite build → out/
 npm run test:unit    # fast: vitest, no Electron
@@ -27,7 +29,8 @@ Node 22+. `node:sqlite` needs `NODE_OPTIONS=--experimental-sqlite` under plain n
   two sides is a compile error, not a runtime surprise.
 - **Ingestion is durable**: `ingestion_log` is the work queue *and* failure history.
   Workers claim rows with a conditional UPDATE; a forced quit loses no bookkeeping.
-- **Two worker threads** run sharp (the only native module). Decode memory scales with
+- **Up to two worker threads** (`min(2, cores − 1)`, `pool.ts`) run sharp (the only
+  native module). Decode memory scales with
   decoded pixels, so more threads buys thrash, not throughput.
 - **One SQLite connection per thread** (main + each worker), WAL, busy_timeout 5s.
   All SQL text lives in `db/queries.ts`; schema in `db/migrations.ts`.
@@ -52,7 +55,7 @@ Node 22+. `node:sqlite` needs `NODE_OPTIONS=--experimental-sqlite` under plain n
 6. **Failures are never silent**: anything that stops a file arriving (rejection, walk
    guard, decode error, exhausted retries) must end up in `ingestion_log` where the footer
    lists it. A truncated import that looks complete is data loss.
-7. **Destructive confirmation lives in main** (`removeImage`), not on buttons. Renderer
+7. **Destructive confirmation lives in main** (`removeImages`), not on buttons. Renderer
    code must not add its own confirm dialogs.
 
 ## Gotchas
@@ -72,6 +75,9 @@ Node 22+. `node:sqlite` needs `NODE_OPTIONS=--experimental-sqlite` under plain n
   detail panel renders them back in UTC on purpose.
 - Grid is deliberately **not virtualised** (measured: plain DOM holds 120Hz at 5000 tiles;
   page size caps at 500). Don't add a virtual scroller without new measurements.
+- The grid always reserves its scrollbar gutter (`scrollbar-gutter: stable`, `styles.css`),
+  and `layout.ts`'s width budget counts on it — drop either and the tiles' right inset is
+  clipped the moment a scrollbar appears.
 
 ## Testing philosophy
 
