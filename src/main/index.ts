@@ -1,4 +1,5 @@
 import { app, BrowserWindow, nativeImage } from 'electron'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openDatabase } from './db/open.js'
 import { migrate } from './db/migrate.js'
@@ -11,7 +12,15 @@ import { appIconFile, dbFile, ensureDataDirs, settingsFile, thumbnailsDir } from
 import { registerImgProtocol, registerImgScheme } from './protocol.js'
 import { openSettings } from './settings.js'
 
-// Must happen before ready: userData cannot move once paths have been read.
+/** Kept in step with package.json's productName, which names a packaged build. */
+const APP_NAME = 'Image Library'
+
+// Both before ready: userData cannot move once paths have been read, and the
+// name feeds the About/Hide/Quit labels the default macOS menu builds at ready.
+// Pinned first, because userData defaults to the app name — renaming the app
+// must not strand an existing library under the old directory.
+app.setPath('userData', join(app.getPath('appData'), 'image-library-and-display'))
+app.setName(APP_NAME)
 if (process.env.SMOKE_USER_DATA) app.setPath('userData', process.env.SMOKE_USER_DATA)
 
 /**

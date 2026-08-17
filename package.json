@@ -1,12 +1,13 @@
 {
   "name": "image-library-and-display",
+  "productName": "Image Library",
   "version": "0.1.0",
   "description": "Electron image library and display: index images in place, browse and zoom",
   "main": "./out/main/index.js",
   "type": "module",
   "scripts": {
     "postinstall": "install-electron",
-    "dev": "electron-vite dev",
+    "dev": "node scripts/name-dev-bundle.mjs && electron-vite dev",
     "build": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && electron-vite build",
     "start": "electron-vite preview",
     "test": "npm run test:unit && npm run test:smoke",
