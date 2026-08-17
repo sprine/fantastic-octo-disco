@@ -9,7 +9,7 @@ export type UiSettings = {
 }
 
 /** Also the allowlist a stored column count is checked against. */
-export const COLUMN_SNAPS = [2, 3, 4] as const
+export const COLUMN_SNAPS = [1, 2, 3, 4] as const
 
 /** The mockup draws two columns with the drawer open; a first launch matches it. */
 export const DEFAULT_SETTINGS: UiSettings = {
