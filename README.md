@@ -1,4 +1,5 @@
 # Image Library & Display
+<img width="1512" height="749" alt="image" src="https://github.com/user-attachments/assets/878ee9f2-bb8b-4b20-a876-7d65ba582f8c" />
 
 A desktop app (Electron + React) for looking at a folder-load of photos — including big TIF
 survey images that browsers can't open. It **never copies or moves your originals**. It just
